@@ -17,6 +17,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "ma_user", unique = true, nullable = true, length = 20)
+    private String maUser;
+
     @Column(name = "ten_dang_nhap", unique = true, nullable = false)
     private String tenDangNhap;
 
@@ -36,8 +39,7 @@ public class User {
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "thoi_gian_tao", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Date thoiGianTao;
 
     @ManyToOne

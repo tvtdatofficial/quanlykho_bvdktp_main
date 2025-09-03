@@ -57,23 +57,31 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public User saveEmployee(User user) {
-        Optional<User> existingByUsername = userRepository.findByTenDangNhap(user.getTenDangNhap());
-        if (existingByUsername.isPresent()) {
-            throw new IllegalStateException("Tên đăng nhập '" + user.getTenDangNhap() + "' đã tồn tại");
+        // Kiểm tra username và email như cũ
+        if (userRepository.findByTenDangNhap(user.getTenDangNhap()).isPresent()) {
+            throw new IllegalStateException("Tên đăng nhập đã tồn tại");
         }
-        Optional<User> existingByEmail = userRepository.findByEmail(user.getEmail());
-        if (existingByEmail.isPresent()) {
-            throw new IllegalStateException("Email '" + user.getEmail() + "' đã tồn tại");
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new IllegalStateException("Email đã tồn tại");
         }
+
+        // ===== XỬ LÝ MÃ USER =====
+        if (user.getMaUser() != null && !user.getMaUser().trim().isEmpty()) {
+            // Nếu người dùng nhập mã User -> kiểm tra trùng
+            if (userRepository.existsByMaUser(user.getMaUser().trim())) {
+                throw new IllegalStateException("Mã User '" + user.getMaUser() + "' đã tồn tại");
+            }
+            user.setMaUser(user.getMaUser().trim().toUpperCase()); // Chuẩn hóa
+        }
+        // Nếu để trống -> giữ nguyên null, không tự động tạo
+
+        // Xử lý role như cũ
         if (user.getRole() == null || user.getRole().getTenVaiTro() == null) {
             Role defaultRole = roleRepository.findByTenVaiTro("NHAN_VIEN_KHO")
-                    .orElseThrow(() -> new IllegalStateException("Vai trò mặc định NHAN_VIEN_KHO không tồn tại"));
+                    .orElseThrow(() -> new IllegalStateException("Vai trò mặc định không tồn tại"));
             user.setRole(defaultRole);
-        } else {
-            Role role = roleRepository.findByTenVaiTro(user.getRole().getTenVaiTro())
-                    .orElseThrow(() -> new IllegalStateException("Vai trò '" + user.getRole().getTenVaiTro() + "' không tồn tại"));
-            user.setRole(role);
         }
+
         return userRepository.save(user);
     }
 

@@ -9,6 +9,11 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByTenDangNhap(String tenDangNhap);
     Optional<User> findByEmail(String email);
+
+    Optional<User> findByMaUser(String maUser);
+    boolean existsByMaUser(String maUser);
+
+
     Page<User> findByTenDangNhapContainingIgnoreCaseOrEmailContainingIgnoreCase(
             String tenDangNhap, String email, Pageable pageable);
 }
