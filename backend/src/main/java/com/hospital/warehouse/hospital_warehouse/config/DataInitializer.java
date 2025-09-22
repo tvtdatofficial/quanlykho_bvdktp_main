@@ -60,7 +60,23 @@ public class DataInitializer implements CommandLineRunner {
 
         for (String[] khoaPhong : cacKhoaPhong) {
             if (khoaPhongRepository.findByMaKhoaPhong(khoaPhong[0]).isEmpty()) {
-                KhoaPhong kp = new KhoaPhong(khoaPhong[1], khoaPhong[0], khoaPhong[2]);
+                // Sử dụng builder pattern hoặc setter methods
+                KhoaPhong kp = KhoaPhong.builder()
+                        .maKhoaPhong(khoaPhong[0])
+                        .tenKhoaPhong(khoaPhong[1])
+                        .moTa(khoaPhong[2])
+                        .trangThai(KhoaPhong.TrangThaiKhoaPhong.HOAT_DONG)
+                        .build();
+
+                // Hoặc nếu không có builder pattern, dùng cách này:
+            /*
+            KhoaPhong kp = new KhoaPhong();
+            kp.setMaKhoaPhong(khoaPhong[0]);
+            kp.setTenKhoaPhong(khoaPhong[1]);
+            kp.setMoTa(khoaPhong[2]);
+            kp.setTrangThai(KhoaPhong.TrangThaiKhoaPhong.HOAT_DONG);
+            */
+
                 khoaPhongRepository.save(kp);
                 log.info("Đã tạo khoa phòng: {}", khoaPhong[1]);
             }

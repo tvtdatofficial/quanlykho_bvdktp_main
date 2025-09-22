@@ -5,7 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -13,24 +14,25 @@ import java.util.Date;
 @Builder
 @Entity
 @Table(name = "khoa_phong", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"ten_khoa_phong"}),
-        @UniqueConstraint(columnNames = {"ma_khoa_phong"})
+        @UniqueConstraint(columnNames = {"ma_khoa_phong"}),
+        @UniqueConstraint(columnNames = {"ten_khoa_phong"})
 })
 public class KhoaPhong {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "ma_khoa_phong", unique = true, nullable = false)
+    @Column(name = "ma_khoa_phong", unique = true, nullable = false, length = 255)
     private String maKhoaPhong;
 
-    @Column(name = "ten_khoa_phong", nullable = false)
+    @Column(name = "ten_khoa_phong", unique = true, nullable = false, length = 255)
     private String tenKhoaPhong;
 
-    @Column(name = "mo_ta")
+    @Column(name = "mo_ta", length = 255)
     private String moTa;
 
-    @Column(name = "dia_chi")
+    @Column(name = "dia_chi", length = 255)
     private String diaChi;
 
     @Column(name = "so_dien_thoai", length = 20)
@@ -47,31 +49,30 @@ public class KhoaPhong {
     @Column(name = "trang_thai", columnDefinition = "ENUM('HOAT_DONG','TAM_DUNG','DONG_CUA') DEFAULT 'HOAT_DONG'")
     private TrangThaiKhoaPhong trangThai = TrangThaiKhoaPhong.HOAT_DONG;
 
-    @Temporal(TemporalType.TIMESTAMP)
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Date thoiGianTao;
+    private LocalDateTime createdAt;
 
-    @Temporal(TemporalType.TIMESTAMP)
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "updated_at")
-    private Date updatedAt;
-
-    // Constructor tương thích với code cũ
-    public KhoaPhong(String tenKhoaPhong, String maKhoaPhong, String moTa) {
-        this.tenKhoaPhong = tenKhoaPhong;
-        this.maKhoaPhong = maKhoaPhong;
-        this.moTa = moTa;
-    }
+    private LocalDateTime updatedAt;
 
     @PrePersist
     public void prePersist() {
-        if (this.thoiGianTao == null) this.thoiGianTao = new Date();
-        if (this.updatedAt == null) this.updatedAt = new Date();
-        if (this.trangThai == null) this.trangThai = TrangThaiKhoaPhong.HOAT_DONG;
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.updatedAt == null) {
+            this.updatedAt = LocalDateTime.now();
+        }
+        if (this.trangThai == null) {
+            this.trangThai = TrangThaiKhoaPhong.HOAT_DONG;
+        }
     }
 
     @PreUpdate
     public void preUpdate() {
-        this.updatedAt = new Date();
+        this.updatedAt = LocalDateTime.now();
     }
 
     public enum TrangThaiKhoaPhong {

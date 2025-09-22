@@ -84,8 +84,8 @@ public class HangHoaDTO {
     private String kichThuoc;
     private String mauSac;
 
-    private List<String> hinhAnhUrl;
-    private List<String> taiLieuDinhKem;
+    private String hinhAnhUrl;
+    private String taiLieuDinhKem;
 
     private String yeuCauBaoQuan;
     private BigDecimal nhietDoBaoQuanMin;

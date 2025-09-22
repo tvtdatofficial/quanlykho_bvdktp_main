@@ -1,11 +1,13 @@
 package com.hospital.warehouse.hospital_warehouse.service;
 
+import com.hospital.warehouse.hospital_warehouse.dto.UserDTO;
 import com.hospital.warehouse.hospital_warehouse.entity.KhoaPhong;
 import com.hospital.warehouse.hospital_warehouse.entity.User;
 import com.hospital.warehouse.hospital_warehouse.entity.Role;
 import com.hospital.warehouse.hospital_warehouse.repository.KhoaPhongRepository;
 import com.hospital.warehouse.hospital_warehouse.repository.UserRepository;
 import com.hospital.warehouse.hospital_warehouse.repository.RoleRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class UserService implements UserDetailsService {
 
@@ -45,6 +49,7 @@ public class UserService implements UserDetailsService {
                 .roles(vaiTro)
                 .build();
     }
+
 
     public User findByUsername(String tenDangNhap) {
         return userRepository.findByTenDangNhap(tenDangNhap)
@@ -94,5 +99,32 @@ public class UserService implements UserDetailsService {
             return userRepository.findAll(pageable);
         }
         return userRepository.findByTenDangNhapContainingIgnoreCaseOrEmailContainingIgnoreCase(search, search, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserDTO> getUsersByRole(String roleName) {
+        log.info("Lấy danh sách user theo role: {}", roleName);
+
+        return userRepository.findByRoleTenVaiTroAndTrangThai(roleName, User.TrangThaiUser.HOAT_DONG)
+                .stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    private UserDTO convertToDTO(User user) {
+        return UserDTO.builder()
+                .id(user.getId())
+                .maUser(user.getMaUser()) // Thêm field này
+                .tenDangNhap(user.getTenDangNhap())
+                .email(user.getEmail())
+                .hoTen(user.getHoTen())
+                .soDienThoai(user.getSoDienThoai())
+                .roleId(user.getRole().getId())
+                .roleName(user.getRole().getTenVaiTro())
+                .khoaPhongId(user.getKhoaPhong().getId())
+                .tenKhoaPhong(user.getKhoaPhong().getTenKhoaPhong())
+                .trangThai(user.getTrangThai())
+                .createdAt(user.getThoiGianTao())
+                .build();
     }
 }

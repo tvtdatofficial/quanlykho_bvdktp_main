@@ -110,13 +110,14 @@ public class HangHoa {
     @Column(name = "mau_sac", length = 50)
     private String mauSac;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "hinh_anh_url", columnDefinition = "JSON")
-    private List<String> hinhAnhUrl;
+    // Thay vì các annotation JSON phức tạp:
+    @Lob
+    @Column(name = "hinh_anh_url", columnDefinition = "longtext")
+    private String hinhAnhUrl;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "tai_lieu_dinh_kem", columnDefinition = "JSON")
-    private List<String> taiLieuDinhKem;
+    @Lob
+    @Column(name = "tai_lieu_dinh_kem", columnDefinition = "longtext")
+    private String taiLieuDinhKem;
 
     @Column(name = "yeu_cau_bao_quan", columnDefinition = "TEXT")
     private String yeuCauBaoQuan;
