@@ -74,7 +74,7 @@ const DangNhap = () => {
             Đăng nhập
           </h2>
           <p style={{ color: '#7f8c8d', margin: '0.5rem 0 0 0' }}>
-            Hệ thống quản lý kho bệnh viện
+            Hệ thống quản lý kho bệnh viện Đa khoa Tân Phú
           </p>
         </div>
 

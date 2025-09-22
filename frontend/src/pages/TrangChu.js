@@ -1,14 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
+import api from '../services/api';
 
 const TrangChu = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+  const [statistics, setStatistics] = useState({
+    tongKho: 0,
+    hangHoa: 0,
+    nhapHomNay: 0,
+    xuatHomNay: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStatistics();
+  }, []);
+
+  const fetchStatistics = async () => {
+    setLoading(true);
+    try {
+      // Fetch real statistics from APIs
+      const [khoResponse, hangHoaResponse] = await Promise.all([
+        api.get('/api/kho/statistics/count').catch(() => ({ data: { data: 0 } })),
+        api.get('/api/hang-hoa?size=1').catch(() => ({ data: { data: { totalElements: 0 } } }))
+      ]);
+
+      setStatistics({
+        tongKho: khoResponse.data.data || 0,
+        hangHoa: hangHoaResponse.data.data?.totalElements || 0,
+        nhapHomNay: 12, // Will be replaced with real data when APIs are available
+        xuatHomNay: 8   // Will be replaced with real data when APIs are available
+      });
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      // Keep default values if API calls fail
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const thongKe = [
-    { tieuDe: 'Tổng kho', giaTri: '5', mauSac: '#3498db', icon: '🏭' },
-    { tieuDe: 'Hàng hóa', giaTri: '247', mauSac: '#2ecc71', icon: '📦' },
-    { tieuDe: 'Nhập hôm nay', giaTri: '12', mauSac: '#f39c12', icon: '📥' },
-    { tieuDe: 'Xuất hôm nay', giaTri: '8', mauSac: '#e74c3c', icon: '📤' },
+    { tieuDe: 'Tổng kho', giaTri: statistics.tongKho.toString(), mauSac: '#3498db', icon: '🏭' },
+    { tieuDe: 'Hàng hóa', giaTri: statistics.hangHoa.toString(), mauSac: '#2ecc71', icon: '📦' },
+    { tieuDe: 'Nhập hôm nay', giaTri: statistics.nhapHomNay.toString(), mauSac: '#f39c12', icon: '📥' },
+    { tieuDe: 'Xuất hôm nay', giaTri: statistics.xuatHomNay.toString(), mauSac: '#e74c3c', icon: '📤' },
   ];
 
   const hoatDongGanDay = [
@@ -74,10 +109,91 @@ const TrangChu = () => {
                 fontWeight: 'bold',
                 color: '#2c3e50'
               }}>
-                {item.giaTri}
+                {loading ? '...' : item.giaTri}
               </p>
             </div>
           ))}
+        </div>
+
+        {/* Quick Actions */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: '1rem',
+          marginBottom: '2rem'
+        }}>
+          <button
+            onClick={() => window.location.href = '/quan-ly-kho'}
+            style={{
+              backgroundColor: '#3498db',
+              color: 'white',
+              border: 'none',
+              padding: '1rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            🏭 Quản lý Kho
+          </button>
+          <button
+            onClick={() => window.location.href = '/hang-hoa'}
+            style={{
+              backgroundColor: '#2ecc71',
+              color: 'white',
+              border: 'none',
+              padding: '1rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            📦 Quản lý Hàng hóa
+          </button>
+          <button
+            onClick={() => window.location.href = '/nhap-kho'}
+            style={{
+              backgroundColor: '#f39c12',
+              color: 'white',
+              border: 'none',
+              padding: '1rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            📥 Nhập Kho
+          </button>
+          <button
+            onClick={() => window.location.href = '/xuat-kho'}
+            style={{
+              backgroundColor: '#e74c3c',
+              color: 'white',
+              border: 'none',
+              padding: '1rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            📤 Xuất Kho
+          </button>
         </div>
 
         {/* Hoạt động gần đây */}

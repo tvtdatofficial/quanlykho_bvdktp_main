@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const dangXuat = () => {
     if (window.confirm('Bạn có chắc muốn đăng xuất?')) {
       localStorage.clear();
-      window.location.href = '/dang-nhap';
+      navigate('/dang-nhap');
     }
   };
 
@@ -66,24 +69,28 @@ const Layout = ({ children }) => {
         {/* Menu */}
         <nav style={{ padding: '1rem 0' }}>
           {menuItems.map((item, index) => (
-            <a
+            <button
               key={index}
-              href={item.path}
+              onClick={() => navigate(item.path)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
+                width: '100%',
                 padding: '0.75rem 1rem',
                 color: 'white',
-                textDecoration: 'none',
+                backgroundColor: 'transparent',
+                border: 'none',
+                textAlign: 'left',
+                cursor: 'pointer',
                 transition: 'background-color 0.2s',
-                borderLeft: window.location.pathname === item.path ? '3px solid #3498db' : 'none'
+                borderLeft: location.pathname === item.path ? '3px solid #3498db' : 'none'
               }}
               onMouseOver={(e) => e.target.style.backgroundColor = '#34495e'}
               onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
             >
               <span style={{ marginRight: '0.75rem' }}>{item.icon}</span>
               {sidebarOpen && <span>{item.name}</span>}
-            </a>
+            </button>
           ))}
         </nav>
       </div>
@@ -104,7 +111,7 @@ const Layout = ({ children }) => {
           alignItems: 'center'
         }}>
           <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#2c3e50' }}>
-            Hệ thống quản lý kho bệnh viện
+            Hệ thống quản lý kho bệnh viện Đa khoa Tân Phú
           </h1>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
