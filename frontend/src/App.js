@@ -9,7 +9,15 @@ import HangHoa from './pages/HangHoa';
 import NhapKho from './pages/NhapKho';
 import XuatKho from './pages/XuatKho';
 import BaoCao from './pages/BaoCao';
+
+
+import ViTriKho from './pages/ViTriKho';
+import LoHang from './pages/LoHang';
+
 import BaoVeRoute from './components/BaoVeRoute';
+
+
+
 import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
@@ -18,59 +26,66 @@ function App() {
       <div className="App">
         <Routes>
           <Route path="/dang-nhap" element={<DangNhap />} />
-          <Route 
-            path="/" 
+          <Route
+            path="/"
             element={
               <BaoVeRoute>
                 <TrangChu />
               </BaoVeRoute>
-            } 
+            }
           />
-          <Route 
-            path="/quan-ly-kho" 
+          <Route
+            path="/quan-ly-kho"
             element={
               <BaoVeRoute>
                 <QuanLyKho />
               </BaoVeRoute>
-            } 
+            }
           />
-          <Route 
-            path="/hang-hoa" 
+          <Route
+            path="/hang-hoa"
             element={
               <BaoVeRoute>
                 <HangHoa />
               </BaoVeRoute>
-            } 
+            }
           />
-          <Route 
-            path="/nhap-kho" 
+          <Route
+            path="/nhap-kho"
             element={
               <BaoVeRoute>
                 <NhapKho />
               </BaoVeRoute>
-            } 
+            }
           />
-          <Route 
-            path="/xuat-kho" 
+          <Route
+            path="/xuat-kho"
             element={
               <BaoVeRoute>
                 <XuatKho />
               </BaoVeRoute>
-            } 
+            }
           />
-          <Route 
-            path="/bao-cao" 
+          <Route
+            path="/bao-cao"
             element={
               <BaoVeRoute>
                 <BaoCao />
               </BaoVeRoute>
-            } 
+            }
           />
+
+
+          <Route path="/vi-tri-kho" element={<ViTriKho />} />
+          <Route path="/lo-hang" element={<LoHang />} />
+
+
+
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-        
-        <ToastContainer 
-          position="top-right" 
+
+        <ToastContainer
+          position="top-right"
           autoClose={3000}
           hideProgressBar={false}
           newestOnTop

@@ -17,13 +17,15 @@ const Layout = ({ children }) => {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const menuItems = [
-    { name: 'Trang chủ', path: '/', icon: '🏠' },
-    { name: 'Quản lý kho', path: '/quan-ly-kho', icon: '🏭' },
-    { name: 'Hàng hóa', path: '/hang-hoa', icon: '📦' },
-    { name: 'Nhập kho', path: '/nhap-kho', icon: '📥' },
-    { name: 'Xuất kho', path: '/xuat-kho', icon: '📤' },
-    { name: 'Báo cáo', path: '/bao-cao', icon: '📊' },
-  ];
+  { name: 'Trang chủ', path: '/', icon: '🏠' },
+  { name: 'Quản lý kho', path: '/quan-ly-kho', icon: '🏭' },
+  { name: 'Hàng hóa', path: '/hang-hoa', icon: '📦' },
+  { name: 'Vị trí kho', path: '/vi-tri-kho', icon: '📍' },
+  { name: 'Lô hàng', path: '/lo-hang', icon: '🏷️' },
+  { name: 'Nhập kho', path: '/nhap-kho', icon: '📥' },
+  { name: 'Xuất kho', path: '/xuat-kho', icon: '📤' },
+  { name: 'Báo cáo', path: '/bao-cao', icon: '📊' },
+];
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
