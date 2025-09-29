@@ -175,6 +175,11 @@ public class HangHoa {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Thêm vào sau các field khác trong HangHoa.java
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Column(name = "ngay_nhap_gan_nhat")
+    private LocalDateTime ngayNhapGanNhat;
+
     @PrePersist
     public void prePersist() {
         if (this.createdAt == null) {

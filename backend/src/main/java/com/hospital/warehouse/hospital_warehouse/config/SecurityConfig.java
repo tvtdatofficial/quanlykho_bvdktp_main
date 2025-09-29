@@ -62,23 +62,25 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // ========== QUẢN LÝ KHO APIs ==========
-                        .requestMatchers("/kho/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
-                        .requestMatchers("/hang-hoa/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
-                        .requestMatchers("/nhap-kho/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
-                        .requestMatchers("/xuat-kho/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
-
-                        // ========== NHÂN VIÊN & KHOA PHÒNG APIs ==========
-                        .requestMatchers("/nhanvien/**").hasAnyRole("ADMIN", "QUAN_LY_KHO")
-                        .requestMatchers("/khoa-phong/**").hasAnyRole("ADMIN", "QUAN_LY_KHO")
-
-                        // ========== BÁO CÁO APIs ==========
-                        .requestMatchers("/bao-cao/**").hasAnyRole("ADMIN", "QUAN_LY_KHO")
+                        // ========== API ENDPOINTS với /api prefix ==========
+                        .requestMatchers("/api/kho/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/hang-hoa/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/vi-tri-kho/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/lo-hang/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/phieu-nhap/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/phieu-xuat/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/nha-cung-cap/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/danh-muc/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/don-vi-tinh/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/khoa-phong/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
 
                         // ========== USER MANAGEMENT APIs ==========
-                        .requestMatchers("/user/current").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
-                        .requestMatchers("/user/current/password").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
-                        .requestMatchers("/user/**").hasRole("ADMIN")
+                        .requestMatchers("/api/user/current").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/user/current/password").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/user/**").hasRole("ADMIN")
+
+                        // ========== BÁO CÁO APIs ==========
+                        .requestMatchers("/api/bao-cao/**").hasAnyRole("ADMIN", "QUAN_LY_KHO")
 
                         // ========== DEFAULT ==========
                         .anyRequest().authenticated()
@@ -86,8 +88,9 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
                             response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                            response.getWriter().write("{\"error\": \"Truy cập không được phép\"}");
+                            response.getWriter().write("{\"error\": \"Truy cập không được phép. Vui lòng đăng nhập.\"}");
                         })
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
