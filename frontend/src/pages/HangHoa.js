@@ -3,7 +3,7 @@ import Layout from '../components/layout/Layout';
 import { Modal, Table, Loading } from '../components/shared';
 import HangHoaForm from '../components/forms/HangHoaForm';
 import { toast } from 'react-toastify';
-import api from '../services/api';
+import api, { getImageUrl } from '../services/api';
 
 const HangHoa = () => {
   const [hangHoaList, setHangHoaList] = useState([]);
@@ -108,6 +108,44 @@ const HangHoa = () => {
   };
 
   const columns = [
+    {
+      title: 'Hình ảnh',
+      dataIndex: 'hinhAnhUrl',
+      width: '80px',
+      render: (url) => (
+        url ? (
+          <img
+            src={getImageUrl(url)}
+            alt="Product"
+            style={{
+              width: '60px',
+              height: '60px',
+              objectFit: 'cover',
+              borderRadius: '8px',
+              border: '2px solid #ddd'
+            }}
+            onError={(e) => {
+              e.target.onerror = null; // Ngăn vòng lặp vô hạn
+              e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZjBmMGYwIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk4vQTwvdGV4dD4KPC9zdmc+';
+            }}
+          />
+        ) : (
+          <div style={{
+            width: '60px',
+            height: '60px',
+            backgroundColor: '#f0f0f0',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#999',
+            fontSize: '0.8rem'
+          }}>
+            No Image
+          </div>
+        )
+      )
+    },
     { title: 'Mã Hàng Hóa', dataIndex: 'maHangHoa' },
     { title: 'Tên Hàng Hóa', dataIndex: 'tenHangHoa' },
     { title: 'Danh Mục', dataIndex: 'tenDanhMuc' },
@@ -389,71 +427,248 @@ const HangHoa = () => {
         >
           {viewingHangHoa && (
             <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <h4 style={{ color: '#2c3e50', marginBottom: '1rem' }}>Thông tin cơ bản</h4>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Mã hàng hóa:</strong> {viewingHangHoa.maHangHoa}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Tên hàng hóa:</strong> {viewingHangHoa.tenHangHoa}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Tên khoa học:</strong> {viewingHangHoa.tenKhoaHoc || 'Không có'}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Danh mục:</strong> {viewingHangHoa.tenDanhMuc}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Đơn vị tính:</strong> {viewingHangHoa.tenDonViTinh}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Nhà cung cấp:</strong> {viewingHangHoa.tenNhaCungCap || 'Không có'}
-                  </div>
-                </div>
 
-                <div>
-                  <h4 style={{ color: '#2c3e50', marginBottom: '1rem' }}>Thông tin kho</h4>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Tồn kho hiện tại:</strong>
+              {/* Header với ảnh */}
+              <div style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                marginBottom: '1.5rem',
+                color: 'white',
+                display: 'flex',
+                gap: '1.5rem',
+                alignItems: 'center'
+              }}>
+                {viewingHangHoa.hinhAnhUrl && (
+                  <img
+                    src={getImageUrl(viewingHangHoa.hinhAnhUrl)}
+                    alt={viewingHangHoa.tenHangHoa}
+                    style={{
+                      width: '150px',
+                      height: '150px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      border: '3px solid rgba(255,255,255,0.3)'
+                    }}
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/150?text=No+Image';
+                    }}
+                  />
+                )}
+
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: '0.85rem',
+                    opacity: 0.9,
+                    marginBottom: '0.5rem'
+                  }}>
+                    {viewingHangHoa.maHangHoa}
+                  </div>
+                  <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>
+                    {viewingHangHoa.tenHangHoa}
+                  </h2>
+                  {viewingHangHoa.tenKhoaHoc && (
+                    <div style={{ opacity: 0.9, fontStyle: 'italic', marginBottom: '1rem' }}>
+                      {viewingHangHoa.tenKhoaHoc}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.9rem' }}>
                     <span style={{
-                      color: viewingHangHoa.soLuongCoTheXuat < viewingHangHoa.soLuongToiThieu ? '#e74c3c' : '#27ae60',
-                      fontWeight: 'bold',
-                      marginLeft: '0.5rem'
+                      background: 'rgba(255,255,255,0.2)',
+                      padding: '0.3rem 0.7rem',
+                      borderRadius: '5px'
                     }}>
-                      {viewingHangHoa.soLuongCoTheXuat || 0}
+                      📂 {viewingHangHoa.tenDanhMuc}
                     </span>
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Số lượng tối thiểu:</strong> {viewingHangHoa.soLuongToiThieu || 0}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Số lượng tối đa:</strong> {viewingHangHoa.soLuongToiDa || 0}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Trạng thái:</strong>
                     <span style={{
-                      marginLeft: '0.5rem',
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '4px',
-                      fontSize: '0.8rem',
-                      backgroundColor: viewingHangHoa.trangThai === 'HOAT_DONG' ? '#d5f4e6' : '#ffeaa7',
-                      color: viewingHangHoa.trangThai === 'HOAT_DONG' ? '#00b894' : '#fdcb6e'
+                      background: 'rgba(255,255,255,0.2)',
+                      padding: '0.3rem 0.7rem',
+                      borderRadius: '5px'
                     }}>
-                      {viewingHangHoa.trangThai === 'HOAT_DONG' ? 'Hoạt động' : 'Tạm dừng'}
+                      {viewingHangHoa.tenDonViTinh}
                     </span>
                   </div>
                 </div>
               </div>
 
+              {/* Tồn kho - 3 cards */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '1rem',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{
+                  background: viewingHangHoa.soLuongCoTheXuat < viewingHangHoa.soLuongToiThieu
+                    ? '#e74c3c' : '#27ae60',
+                  color: 'white',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>Tồn kho</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>
+                    {viewingHangHoa.soLuongCoTheXuat || 0}
+                  </div>
+                </div>
+
+                <div style={{
+                  background: '#ecf0f1',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '0.75rem', color: '#7f8c8d' }}>Tối thiểu</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#27ae60' }}>
+                    {viewingHangHoa.soLuongToiThieu || 0}
+                  </div>
+                </div>
+
+                <div style={{
+                  background: '#ecf0f1',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '0.75rem', color: '#7f8c8d' }}>Tối đa</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#3498db' }}>
+                    {viewingHangHoa.soLuongToiDa || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Thông tin 2 cột */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1rem',
+                marginBottom: '1rem'
+              }}>
+                {/* Cột 1 */}
+                <div style={{
+                  background: '#f8f9fa',
+                  padding: '1rem',
+                  borderRadius: '8px'
+                }}>
+                  <h4 style={{ margin: '0 0 1rem 0', color: '#2c3e50' }}>
+                    📋 Thông tin chung
+                  </h4>
+                  {[
+                    ['Nhà cung cấp', viewingHangHoa.tenNhaCungCap],
+                    ['Hãng sản xuất', viewingHangHoa.hangSanXuat],
+                    ['Xuất xứ', viewingHangHoa.xuatXu],
+                    ['Đóng gói', viewingHangHoa.dongGoi]
+                  ].map(([label, value], idx) =>
+                    value && (
+                      <div key={idx} style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#7f8c8d' }}>
+                          {label}
+                        </div>
+                        <div style={{ fontWeight: '500', color: '#2c3e50' }}>
+                          {value}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {/* Cột 2 */}
+                <div style={{
+                  background: '#f8f9fa',
+                  padding: '1rem',
+                  borderRadius: '8px'
+                }}>
+                  <h4 style={{ margin: '0 0 1rem 0', color: '#2c3e50' }}>
+                    ⚙️ Thông số
+                  </h4>
+                  {[
+                    ['Trọng lượng', viewingHangHoa.trongLuong ? `${viewingHangHoa.trongLuong} kg` : null],
+                    ['Kích thước', viewingHangHoa.kichThuoc],
+                    ['Màu sắc', viewingHangHoa.mauSac],
+                    ['HSD mặc định', viewingHangHoa.hanSuDungMacDinh ? `${viewingHangHoa.hanSuDungMacDinh} ngày` : null]
+                  ].map(([label, value], idx) =>
+                    value && (
+                      <div key={idx} style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#7f8c8d' }}>
+                          {label}
+                        </div>
+                        <div style={{ fontWeight: '500', color: '#2c3e50' }}>
+                          {value}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Cấu hình tags */}
+              {(viewingHangHoa.coQuanLyLo || viewingHangHoa.coHanSuDung ||
+                viewingHangHoa.laThuocDoc) && (
+                  <div style={{
+                    background: '#f8f9fa',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    marginBottom: '1rem'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap'
+                    }}>
+                      {viewingHangHoa.coQuanLyLo && (
+                        <span style={{
+                          background: '#3498db',
+                          color: 'white',
+                          padding: '0.3rem 0.7rem',
+                          borderRadius: '15px',
+                          fontSize: '0.85rem'
+                        }}>
+                          📦 Quản lý lô
+                        </span>
+                      )}
+                      {viewingHangHoa.coHanSuDung && (
+                        <span style={{
+                          background: '#e67e22',
+                          color: 'white',
+                          padding: '0.3rem 0.7rem',
+                          borderRadius: '15px',
+                          fontSize: '0.85rem'
+                        }}>
+                          📅 Có HSD
+                        </span>
+                      )}
+                      {viewingHangHoa.laThuocDoc && (
+                        <span style={{
+                          background: '#e74c3c',
+                          color: 'white',
+                          padding: '0.3rem 0.7rem',
+                          borderRadius: '15px',
+                          fontSize: '0.85rem'
+                        }}>
+                          ⚠️ Thuốc độc
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Mô tả */}
               {viewingHangHoa.moTa && (
-                <div style={{ marginTop: '1rem' }}>
-                  <h4 style={{ color: '#2c3e50', marginBottom: '0.5rem' }}>Mô tả</h4>
-                  <p style={{ backgroundColor: '#f8f9fa', padding: '1rem', borderRadius: '4px', margin: 0 }}>
+                <div style={{
+                  background: '#f8f9fa',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  borderLeft: '4px solid #667eea'
+                }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#667eea' }}>
+                    Mô tả
+                  </h4>
+                  <div style={{ color: '#2c3e50', lineHeight: '1.6' }}>
                     {viewingHangHoa.moTa}
-                  </p>
+                  </div>
                 </div>
               )}
+
             </div>
           )}
         </Modal>

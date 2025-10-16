@@ -39,7 +39,7 @@ const LoHangForm = ({ initialData, onSubmit, onCancel }) => {
         soChungTuNhap: initialData.soChungTuNhap || '',
         ghiChu: initialData.ghiChu || ''
       });
-      
+
       if (initialData.hangHoaId && hangHoaList.length > 0) {
         const hangHoa = hangHoaList.find(h => h.id === initialData.hangHoaId);
         setSelectedHangHoa(hangHoa || null);
@@ -133,7 +133,7 @@ const LoHangForm = ({ initialData, onSubmit, onCancel }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -144,7 +144,7 @@ const LoHangForm = ({ initialData, onSubmit, onCancel }) => {
     if (name === 'hangHoaId' && value) {
       const hangHoa = hangHoaList.find(h => h.id === parseInt(value));
       setSelectedHangHoa(hangHoa || null);
-      
+
       if (hangHoa && !formData.giaNhap) {
         setFormData(prev => ({
           ...prev,
@@ -199,28 +199,42 @@ const LoHangForm = ({ initialData, onSubmit, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitError('');
 
     if (!validateForm()) {
-      setSubmitError('Vui lòng kiểm tra lại thông tin đã nhập');
+      setSubmitError('Vui lòng kiểm tra lại thông tin');
       return;
     }
 
     setLoading(true);
-
     try {
       const submitData = {
         ...formData,
         hangHoaId: parseInt(formData.hangHoaId),
         soLuongNhap: parseInt(formData.soLuongNhap),
         giaNhap: parseFloat(formData.giaNhap),
-        nhaCungCapId: formData.nhaCungCapId ? parseInt(formData.nhaCungCapId) : null
+        nhaCungCapId: formData.nhaCungCapId ?
+          parseInt(formData.nhaCungCapId) : null,
+
+        // ✅ Khi edit, chỉ cho phép sửa ngày nếu đang tạo mới
+        ngaySanXuat: initialData ?
+          initialData.ngaySanXuat : // Giữ nguyên khi edit
+          (formData.ngaySanXuat || null),
+
+        hanSuDung: initialData ?
+          initialData.hanSuDung : // Giữ nguyên khi edit
+          (formData.hanSuDung || null),
+
+        // Chỉ cho phép sửa ghi chú
+        ghiChu: formData.ghiChu
       };
 
       await onSubmit(submitData);
     } catch (error) {
-      console.error('Error in form submission:', error);
-      setSubmitError(error.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      console.error('Error:', error);
+      setSubmitError(
+        error.response?.data?.message ||
+        'Có lỗi xảy ra. Vui lòng thử lại.'
+      );
     } finally {
       setLoading(false);
     }
@@ -372,6 +386,7 @@ const LoHangForm = ({ initialData, onSubmit, onCancel }) => {
             value={formData.ngaySanXuat}
             onChange={handleChange}
             style={errors.ngaySanXuat ? inputErrorStyle : inputStyle}
+            disabled={!!initialData}  // ✅ THÊM DÒNG NÀY
             max={new Date().toISOString().split('T')[0]}
           />
           {errors.ngaySanXuat && <div style={errorStyle}>{errors.ngaySanXuat}</div>}
@@ -387,8 +402,8 @@ const LoHangForm = ({ initialData, onSubmit, onCancel }) => {
             value={formData.hanSuDung}
             onChange={handleChange}
             style={errors.hanSuDung ? inputErrorStyle : inputStyle}
+            disabled={!!initialData}
             required
-            min={formData.ngaySanXuat || new Date().toISOString().split('T')[0]}
           />
           {errors.hanSuDung && <div style={errorStyle}>{errors.hanSuDung}</div>}
         </div>

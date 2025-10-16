@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
+import ImageUpload from '../shared/ImageUpload';
 
 const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -206,6 +207,13 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
             rows={3}
           />
         </div>
+
+
+        {/* ✅ THÊM Ở ĐÂY - SAU MÔ TẢ, TRƯỚC CÁC TRƯỜNG KHÁC */}
+    <ImageUpload
+      currentImage={formData.hinhAnhUrl}
+      onImageChange={(url) => setFormData(prev => ({ ...prev, hinhAnhUrl: url }))}
+    />
       </div>
 
       {/* Thông tin chi tiết */}

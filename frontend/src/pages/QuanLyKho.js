@@ -84,8 +84,8 @@ const QuanLyKho = () => {
   const columns = [
     { title: 'Mã Kho', dataIndex: 'maKho' },
     { title: 'Tên Kho', dataIndex: 'tenKho' },
-    { 
-      title: 'Loại Kho', 
+    {
+      title: 'Loại Kho',
       dataIndex: 'loaiKho',
       render: (value) => {
         const loaiKhoMap = {
@@ -161,9 +161,9 @@ const QuanLyKho = () => {
     <Layout>
       <div>
         <h2 style={{ marginBottom: '1.5rem', color: '#2c3e50' }}>Quản lý Kho</h2>
-        
+
         {/* Filter & Search Bar */}
-        <div style={{ 
+        <div style={{
           backgroundColor: 'white',
           padding: '1rem',
           borderRadius: '8px',
@@ -242,7 +242,7 @@ const QuanLyKho = () => {
                 data={khoList}
                 loading={loading}
               />
-              
+
               {/* Pagination */}
               {totalPages > 1 && (
                 <div style={{ padding: '1rem', textAlign: 'center', borderTop: '1px solid #dee2e6' }}>
