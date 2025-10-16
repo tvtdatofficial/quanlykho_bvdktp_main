@@ -12,6 +12,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
@@ -40,6 +41,12 @@ public class PhieuNhapKhoService {
     private final LoHangRepository loHangRepository;
     private final UserRepository userRepository;
     private final NhaCungCapRepository nhaCungCapRepository;
+    private final HangHoaViTriRepository hangHoaViTriRepository;
+    private final ViTriKhoRepository viTriKhoRepository;
+    private final LichSuTonKhoRepository lichSuTonKhoRepository;
+
+    private final LoHangService loHangService;  // ✅ THÊM DÒNG NÀY
+    private final HangHoaService hangHoaService;
 
     /**
      * Lấy danh sách phiếu nhập có phân trang và lọc
@@ -222,39 +229,167 @@ public class PhieuNhapKhoService {
         return convertToDTOWithDetails(phieuNhapKhoRepository.save(phieuNhap));
     }
 
-    /**
-     * Duyệt phiếu nhập và cập nhật tồn kho
-     */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public PhieuNhapKhoDTO duyetPhieuNhap(Long id) {
         PhieuNhapKho phieuNhap = phieuNhapKhoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phiếu nhập"));
 
-        // Kiểm tra trạng thái
+        // Validate trạng thái
         if (phieuNhap.getTrangThai() == PhieuNhapKho.TrangThaiPhieuNhap.DA_DUYET) {
             throw new IllegalStateException("Phiếu nhập đã được duyệt");
         }
-
         if (phieuNhap.getTrangThai() == PhieuNhapKho.TrangThaiPhieuNhap.HUY) {
             throw new IllegalStateException("Không thể duyệt phiếu nhập đã hủy");
         }
 
         User currentUser = getCurrentUser();
-        phieuNhap.setNguoiDuyet(currentUser);
-        phieuNhap.setNgayDuyet(LocalDateTime.now());
-        phieuNhap.setTrangThai(PhieuNhapKho.TrangThaiPhieuNhap.DA_DUYET);
-
-        // Cập nhật tồn kho cho từng chi tiết
         List<ChiTietPhieuNhap> chiTietList = chiTietPhieuNhapRepository.findByPhieuNhapId(id);
 
-        for (ChiTietPhieuNhap chiTiet : chiTietList) {
-            updateInventoryFromNhap(chiTiet);
-            chiTiet.setTrangThai(ChiTietPhieuNhap.TrangThaiChiTiet.DA_NHAP);
-            chiTietPhieuNhapRepository.save(chiTiet);
+        if (chiTietList.isEmpty()) {
+            throw new IllegalStateException("Phiếu nhập không có chi tiết");
         }
 
-        log.info("Approved phieu nhap ID: {} by user: {}", id, currentUser.getTenDangNhap());
-        return convertToDTOWithDetails(phieuNhapKhoRepository.save(phieuNhap));
+        try {
+            // Xử lý từng chi tiết
+            for (ChiTietPhieuNhap chiTiet : chiTietList) {
+                processChiTietNhapKho(chiTiet, phieuNhap);
+            }
+
+            // Cập nhật trạng thái phiếu nhập
+            phieuNhap.setNguoiDuyet(currentUser);
+            phieuNhap.setNgayDuyet(LocalDateTime.now());
+            phieuNhap.setTrangThai(PhieuNhapKho.TrangThaiPhieuNhap.DA_DUYET);
+            phieuNhapKhoRepository.save(phieuNhap);
+
+            log.info("✅ Successfully approved phieu nhap ID: {} by user: {}",
+                    id, currentUser.getTenDangNhap());
+
+            return convertToDTOWithDetails(phieuNhap);
+
+        } catch (Exception e) {
+            log.error("❌ Error approving phieu nhap ID: {}", id, e);
+            throw new RuntimeException("Lỗi khi duyệt phiếu nhập: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Xử lý một chi tiết phiếu nhập
+     */
+    private void processChiTietNhapKho(ChiTietPhieuNhap chiTiet, PhieuNhapKho phieuNhap) {
+        HangHoa hangHoa = chiTiet.getHangHoa();
+
+        // Lưu số lượng trước khi nhập (để ghi lịch sử)
+        Integer soLuongTruocNhap = hangHoa.getSoLuongCoTheXuat() != null ?
+                hangHoa.getSoLuongCoTheXuat() : 0;
+
+        // 1. Kiểm tra sức chứa vị trí kho
+        validateViTriKhoCapacity(chiTiet);
+
+        // 2. Tạo/Cập nhật lô hàng (nếu có quản lý lô)
+        LoHang loHang = null;
+        if (hangHoa.getCoQuanLyLo() != null && hangHoa.getCoQuanLyLo() &&
+                chiTiet.getSoLo() != null && !chiTiet.getSoLo().trim().isEmpty()) {
+
+            // ✅ GỌI TỪ LoHangService thay vì method trong class này
+            loHang = loHangService.findOrCreateLoHang(chiTiet, phieuNhap);
+            chiTiet.setLoHang(loHang);
+            log.info("📦 Assigned lo_hang_id={} to chi_tiet_id={}",
+                    loHang.getId(), chiTiet.getId());
+        }
+
+        // 3. Cập nhật hàng hóa vị trí
+        if (chiTiet.getViTriKho() != null) {
+            updateHangHoaViTri(chiTiet, loHang);
+        }
+
+        // 4. Cập nhật tồn kho
+        updateInventoryFromNhap(chiTiet);
+
+        // 5. Ghi lịch sử tồn kho ✅ THÊM MỚI
+        Integer soLuongSauNhap = hangHoa.getSoLuongCoTheXuat();
+        ghiLichSuTonKho(chiTiet, phieuNhap, soLuongTruocNhap, soLuongSauNhap);
+
+        // 6. Cập nhật trạng thái chi tiết
+        chiTiet.setTrangThai(ChiTietPhieuNhap.TrangThaiChiTiet.DA_NHAP);
+        chiTietPhieuNhapRepository.save(chiTiet);
+    }
+
+
+    /**
+     * Kiểm tra sức chứa vị trí kho
+     */
+    private void validateViTriKhoCapacity(ChiTietPhieuNhap chiTiet) {
+        ViTriKho viTriKho = chiTiet.getViTriKho();
+
+        if (viTriKho == null) {
+            throw new IllegalStateException(
+                    "Chi tiết phiếu nhập ID " + chiTiet.getId() + " chưa có vị trí kho");
+        }
+
+        if (viTriKho.getSucChuaToiDa() != null && viTriKho.getSucChuaToiDa() > 0) {
+            Integer soLuongHienTai = hangHoaViTriRepository
+                    .sumSoLuongByViTriKhoId(viTriKho.getId())
+                    .orElse(0);
+
+            Integer soLuongSauNhap = soLuongHienTai + chiTiet.getSoLuong();
+
+            if (soLuongSauNhap > viTriKho.getSucChuaToiDa()) {
+                // ✅ MESSAGE RÕ RÀNG CHO NGƯỜI DÙNG
+                String errorMessage = String.format(
+                        "Không thể nhập vào vị trí '%s': " +
+                                "Sức chứa tối đa %d, hiện tại đã có %d, " +
+                                "không thể nhập thêm %d (tổng sẽ là %d). " +
+                                "Vui lòng chọn vị trí khác hoặc tăng sức chứa.",
+                        viTriKho.getTenViTri(),
+                        viTriKho.getSucChuaToiDa(),
+                        soLuongHienTai,
+                        chiTiet.getSoLuong(),
+                        soLuongSauNhap
+                );
+
+                log.error("❌ Validation failed: {}", errorMessage);
+                throw new IllegalStateException(errorMessage);
+            }
+        }
+    }
+
+
+
+    /**
+     * Ghi lịch sử biến động tồn kho
+     */
+    private void ghiLichSuTonKho(ChiTietPhieuNhap chiTiet,
+                                 PhieuNhapKho phieuNhap,
+                                 Integer soLuongTruoc,
+                                 Integer soLuongSau) {
+        try {
+            LichSuTonKho lichSu = LichSuTonKho.builder()
+                    .hangHoa(chiTiet.getHangHoa())
+                    .loHang(chiTiet.getLoHang())
+                    .viTriKho(chiTiet.getViTriKho())
+                    .loaiBienDong(LichSuTonKho.LoaiBienDong.NHAP_KHO)
+                    .soLuongTruoc(soLuongTruoc)
+                    .soLuongBienDong(chiTiet.getSoLuong())
+                    .soLuongSau(soLuongSau)
+                    .donGia(chiTiet.getDonGia())
+                    .giaTriBienDong(chiTiet.getThanhTien())
+                    .maChungTu(phieuNhap.getMaPhieuNhap())
+                    .loaiChungTu(LichSuTonKho.LoaiChungTu.PHIEU_NHAP)
+                    .lyDo("Nhập kho từ phiếu nhập " + phieuNhap.getMaPhieuNhap())
+                    .nguoiThucHien(getCurrentUser())
+                    .build();
+
+            lichSuTonKhoRepository.save(lichSu);
+
+            log.info("📝 Saved lich su ton kho: HangHoa={}, Before={}, After={}, Delta=+{}",
+                    chiTiet.getHangHoa().getTenHangHoa(),
+                    soLuongTruoc,
+                    soLuongSau,
+                    chiTiet.getSoLuong());
+        } catch (Exception e) {
+            log.error("❌ Error saving lich su ton kho", e);
+            throw new RuntimeException("Lỗi ghi lịch sử tồn kho: " + e.getMessage());
+        }
     }
 
     /**
@@ -409,10 +544,30 @@ public class PhieuNhapKhoService {
                 throw new IllegalArgumentException("Đơn giá phải lớn hơn 0");
             }
 
+            // ✅ THÊM VALIDATION VỊ TRÍ KHO
+            if (chiTiet.getViTriKhoId() == null) {
+                throw new IllegalArgumentException("Vị trí kho không được để trống");
+            }
+
             // Validate hạn sử dụng
             if (chiTiet.getHanSuDung() != null && chiTiet.getNgaySanXuat() != null) {
                 if (chiTiet.getHanSuDung().isBefore(chiTiet.getNgaySanXuat())) {
                     throw new IllegalArgumentException("Hạn sử dụng phải sau ngày sản xuất");
+                }
+            }
+
+            // ✅ THÊM VALIDATION SỐ LÔ
+            HangHoa hangHoa = hangHoaRepository.findById(chiTiet.getHangHoaId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy hàng hóa"));
+
+            if (hangHoa.getCoQuanLyLo() != null && hangHoa.getCoQuanLyLo()) {
+                if (chiTiet.getSoLo() == null || chiTiet.getSoLo().trim().isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "Số lô không được để trống cho hàng hóa: " + hangHoa.getTenHangHoa());
+                }
+                if (chiTiet.getHanSuDung() == null) {
+                    throw new IllegalArgumentException(
+                            "Hạn sử dụng không được để trống cho hàng hóa: " + hangHoa.getTenHangHoa());
                 }
             }
         }
@@ -484,97 +639,55 @@ public class PhieuNhapKhoService {
         chiTiet.setGhiChu(chiTietDTO.getGhiChu());
         chiTiet.setTrangThai(ChiTietPhieuNhap.TrangThaiChiTiet.CHO_NHAP);
 
+        // ✅ SET VỊ TRÍ KHO
+        if (chiTietDTO.getViTriKhoId() != null) {
+            ViTriKho viTriKho = viTriKhoRepository.findById(chiTietDTO.getViTriKhoId())
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy vị trí kho"));
+            chiTiet.setViTriKho(viTriKho);
+        }
+
         chiTietPhieuNhapRepository.save(chiTiet);
-
-        // Tạo hoặc cập nhật lô hàng nếu hàng hóa có quản lý lô
-        if (hangHoa.getCoQuanLyLo() && chiTietDTO.getSoLo() != null) {
-            createOrUpdateLoHang(hangHoa, chiTietDTO, phieuNhap);
-        }
     }
 
     /**
-     * Tạo hoặc cập nhật lô hàng
-     */
-    private void createOrUpdateLoHang(HangHoa hangHoa,
-                                      PhieuNhapKhoDTO.ChiTietPhieuNhapDTO chiTietDTO,
-                                      PhieuNhapKho phieuNhap) {
-
-        Optional<LoHang> existingLoHang = loHangRepository
-                .findByHangHoaIdAndSoLo(hangHoa.getId(), chiTietDTO.getSoLo());
-
-        LoHang loHang;
-        if (existingLoHang.isPresent()) {
-            // Cập nhật lô hàng đã có
-            loHang = existingLoHang.get();
-            loHang.setSoLuongNhap(loHang.getSoLuongNhap() + chiTietDTO.getSoLuong());
-            loHang.setSoLuongHienTai(loHang.getSoLuongHienTai() + chiTietDTO.getSoLuong());
-        } else {
-            // Tạo lô hàng mới
-            loHang = new LoHang();
-            loHang.setHangHoa(hangHoa);
-            loHang.setSoLo(chiTietDTO.getSoLo());
-            loHang.setNgaySanXuat(chiTietDTO.getNgaySanXuat());
-            loHang.setHanSuDung(chiTietDTO.getHanSuDung());
-            loHang.setSoLuongNhap(chiTietDTO.getSoLuong());
-            loHang.setSoLuongHienTai(chiTietDTO.getSoLuong());
-            loHang.setGiaNhap(chiTietDTO.getDonGia());
-            loHang.setNhaCungCap(phieuNhap.getNhaCungCap());
-            loHang.setSoChungTuNhap(phieuNhap.getMaPhieuNhap());
-            loHang.setTrangThai(LoHang.TrangThaiLoHang.MOI);
-        }
-
-        loHangRepository.save(loHang);
-    }
-
-    /**
-     * Cập nhật tồn kho khi duyệt phiếu nhập
+     * ✅ ĐÃ SỬA: Cập nhật tồn kho khi duyệt phiếu nhập
+     * Delegate logic sang HangHoaService
      */
     private void updateInventoryFromNhap(ChiTietPhieuNhap chiTiet) {
-        HangHoa hangHoa = chiTiet.getHangHoa();
+        log.info("🔄 Updating inventory for HangHoa ID: {} via HangHoaService",
+                chiTiet.getHangHoa().getId());
 
-        // Tính tổng số lượng cũ
-        Integer oldTongSoLuong = hangHoa.getTongSoLuong() != null ? hangHoa.getTongSoLuong() : 0;
-        Integer oldSoLuongCoTheXuat = hangHoa.getSoLuongCoTheXuat() != null ?
-                hangHoa.getSoLuongCoTheXuat() : 0;
-
-        // Cập nhật số lượng tồn kho
-        hangHoa.setTongSoLuong(oldTongSoLuong + chiTiet.getSoLuong());
-        hangHoa.setSoLuongCoTheXuat(oldSoLuongCoTheXuat + chiTiet.getSoLuong());
-
-        // Cập nhật giá nhập trung bình theo công thức WAVG (Weighted Average)
-        BigDecimal giaNhapTrungBinhCu = hangHoa.getGiaNhapTrungBinh() != null ?
-                hangHoa.getGiaNhapTrungBinh() : BigDecimal.ZERO;
-
-        BigDecimal tongGiaTriCu = giaNhapTrungBinhCu.multiply(new BigDecimal(oldTongSoLuong));
-        BigDecimal giaTriNhapMoi = chiTiet.getDonGia().multiply(new BigDecimal(chiTiet.getSoLuong()));
-        BigDecimal tongGiaTriMoi = tongGiaTriCu.add(giaTriNhapMoi);
-
-        BigDecimal giaNhapTrungBinhMoi = tongGiaTriMoi.divide(
-                new BigDecimal(hangHoa.getTongSoLuong()),
-                2,
-                RoundingMode.HALF_UP
+        // ✅ GỌI METHOD TỪ HangHoaService (thay vì tự xử lý)
+        hangHoaService.capNhatTonKhoSauNhap(
+                chiTiet.getHangHoa().getId(),    // ID hàng hóa
+                chiTiet.getSoLuong(),            // Số lượng nhập
+                chiTiet.getDonGia()              // Đơn giá nhập
         );
-        hangHoa.setGiaNhapTrungBinh(giaNhapTrungBinhMoi);
 
-        // Cập nhật ngày nhập gần nhất
-        hangHoa.setNgayNhapGanNhat(LocalDateTime.now());
-
-        hangHoaRepository.save(hangHoa);
-
-        log.info("Updated inventory for hang hoa ID: {} - Old quantity: {}, New quantity: {}, Average price: {}",
-                hangHoa.getId(), oldTongSoLuong, hangHoa.getTongSoLuong(), giaNhapTrungBinhMoi);
+        log.info("✅ Inventory updated successfully for HangHoa ID: {}",
+                chiTiet.getHangHoa().getId());
     }
 
     /**
-     * Sinh mã phiếu nhập tự động theo format: PN-YYYYMMDD-XXXX
+     * Sinh mã phiếu nhập tự động - Thread-safe
      */
-    private String generateMaPhieuNhap() {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public synchronized String generateMaPhieuNhap() {
         LocalDate now = LocalDate.now();
         String prefix = String.format("PN-%d%02d%02d-",
                 now.getYear(), now.getMonthValue(), now.getDayOfMonth());
 
-        long count = phieuNhapKhoRepository.countByMaPhieuNhapStartingWith(prefix);
-        return String.format("%s%04d", prefix, count + 1);
+        try {
+            Long maxNumber = phieuNhapKhoRepository
+                    .findMaxNumberByPrefix(prefix + "%", prefix.length());
+
+            return String.format("%s%04d", prefix, (maxNumber != null ? maxNumber : 0) + 1);
+        } catch (Exception e) {
+            log.error("Error generating ma phieu nhap", e);
+            // Fallback: sử dụng timestamp
+            return String.format("%s%s", prefix,
+                    String.valueOf(System.currentTimeMillis()).substring(8));
+        }
     }
 
     /**
@@ -636,9 +749,9 @@ public class PhieuNhapKhoService {
     private PhieuNhapKhoDTO convertToDTOWithDetails(PhieuNhapKho entity) {
         PhieuNhapKhoDTO dto = convertToDTO(entity);
 
-        // Lấy danh sách chi tiết
+        // ✅ SỬ DỤNG QUERY TỐI ƯU
         List<ChiTietPhieuNhap> chiTietList =
-                chiTietPhieuNhapRepository.findByPhieuNhapId(entity.getId());
+                chiTietPhieuNhapRepository.findByPhieuNhapIdWithDetails(entity.getId());
 
         List<PhieuNhapKhoDTO.ChiTietPhieuNhapDTO> chiTietDTOs = chiTietList.stream()
                 .map(this::convertChiTietToDTO)
@@ -660,7 +773,7 @@ public class PhieuNhapKhoService {
                 .maHangHoa(hangHoa.getMaHangHoa())
                 .tenHangHoa(hangHoa.getTenHangHoa())
                 .tenDonViTinh(hangHoa.getDonViTinh() != null ?
-                        hangHoa.getDonViTinh().getTenDvt() : null)  // ← Sửa dòng này
+                        hangHoa.getDonViTinh().getTenDvt() : null)
                 .soLuong(entity.getSoLuong())
                 .donGia(entity.getDonGia())
                 .thanhTien(entity.getThanhTien())
@@ -669,8 +782,180 @@ public class PhieuNhapKhoService {
                 .ngaySanXuat(entity.getNgaySanXuat())
                 .hanSuDung(entity.getHanSuDung())
                 .soLo(entity.getSoLo())
+                .viTriKhoId(entity.getViTriKho() != null ? entity.getViTriKho().getId() : null)
+                .tenViTriKho(entity.getViTriKho() != null ? entity.getViTriKho().getTenViTri() : null)
+                .loHangId(entity.getLoHang() != null ? entity.getLoHang().getId() : null)
+
+                // ✅ THÊM DÒNG NÀY
+                .hinhAnhUrl(hangHoa.getHinhAnhUrl())
+
                 .ghiChu(entity.getGhiChu())
                 .trangThai(entity.getTrangThai())
                 .build();
     }
+
+
+//    /**
+//     * Tạo hoặc cập nhật lô hàng từ chi tiết phiếu nhập
+//     */
+//    private LoHang createOrUpdateLoHang(ChiTietPhieuNhap chiTiet) {
+//        HangHoa hangHoa = chiTiet.getHangHoa();
+//        PhieuNhapKho phieuNhap = chiTiet.getPhieuNhap();
+//
+//        // ✅ SỬA: Tìm lô hàng theo hangHoaId + soLo + hanSuDung
+//        Optional<LoHang> existingLoHang = loHangRepository
+//                .findByHangHoaIdAndSoLoAndHanSuDung(
+//                        hangHoa.getId(),
+//                        chiTiet.getSoLo(),
+//                        chiTiet.getHanSuDung()  // ✅ THÊM THAM SỐ NÀY
+//                );
+//
+//        LoHang loHang;
+//        if (existingLoHang.isPresent()) {
+//            // Cập nhật lô hàng đã tồn tại
+//            loHang = existingLoHang.get();
+//            int soLuongCu = loHang.getSoLuongNhap();
+//            int soLuongMoi = chiTiet.getSoLuong();
+//
+//            loHang.setSoLuongNhap(soLuongCu + soLuongMoi);
+//            loHang.setSoLuongHienTai(loHang.getSoLuongHienTai() + soLuongMoi);
+//
+//            // Cập nhật giá nhập trung bình (Weighted Average)
+//            BigDecimal giaCu = loHang.getGiaNhap();
+//            BigDecimal tongGiaTriCu = giaCu.multiply(new BigDecimal(soLuongCu));
+//            BigDecimal giaTriMoi = chiTiet.getDonGia().multiply(new BigDecimal(soLuongMoi));
+//            BigDecimal giaTrungBinh = tongGiaTriCu.add(giaTriMoi)
+//                    .divide(new BigDecimal(loHang.getSoLuongNhap()), 2, RoundingMode.HALF_UP);
+//
+//            loHang.setGiaNhap(giaTrungBinh);
+//
+//            log.info("Updated lo hang {} (HSD: {}) - Old qty: {}, New qty: {}, Avg price: {}",
+//                    loHang.getSoLo(), loHang.getHanSuDung(), soLuongCu,
+//                    loHang.getSoLuongNhap(), giaTrungBinh);
+//        } else {
+//            // Tạo lô hàng mới
+//            loHang = LoHang.builder()
+//                    .hangHoa(hangHoa)
+//                    .soLo(chiTiet.getSoLo())
+//                    .ngaySanXuat(chiTiet.getNgaySanXuat())
+//                    .hanSuDung(chiTiet.getHanSuDung())
+//                    .soLuongNhap(chiTiet.getSoLuong())
+//                    .soLuongHienTai(chiTiet.getSoLuong())
+//                    .giaNhap(chiTiet.getDonGia())
+//                    .nhaCungCap(phieuNhap.getNhaCungCap())
+//                    .soChungTuNhap(phieuNhap.getMaPhieuNhap())
+//                    .trangThai(LoHang.TrangThaiLoHang.MOI)
+//                    .build();
+//
+//            log.info("Created new lo hang {} (HSD: {}) for hang hoa ID: {}",
+//                    loHang.getSoLo(), loHang.getHanSuDung(), hangHoa.getId());
+//        }
+//
+//        // Xác định và cập nhật trạng thái lô hàng
+//        loHang.setTrangThai(determineLoHangStatus(loHang));
+//
+//        return loHangRepository.save(loHang);
+//    }
+
+    /**
+     * Xác định trạng thái lô hàng dựa trên hạn sử dụng và số lượng
+     */
+    private LoHang.TrangThaiLoHang determineLoHangStatus(LoHang loHang) {
+        // Hết hàng
+        if (loHang.getSoLuongHienTai() <= 0) {
+            return LoHang.TrangThaiLoHang.HET_HANG;
+        }
+
+        // Kiểm tra hạn sử dụng
+        if (loHang.getHanSuDung() != null) {
+            LocalDate now = LocalDate.now();
+
+            // Hết hạn
+            if (loHang.getHanSuDung().isBefore(now)) {
+                return LoHang.TrangThaiLoHang.HET_HAN;
+            }
+
+            // Gần hết hạn (30 ngày)
+            if (loHang.getHanSuDung().isBefore(now.plusDays(30))) {
+                return LoHang.TrangThaiLoHang.GAN_HET_HAN;
+            }
+        }
+
+        // Đang sử dụng (đã xuất một phần)
+        if (loHang.getSoLuongHienTai() < loHang.getSoLuongNhap()) {
+            return LoHang.TrangThaiLoHang.DANG_SU_DUNG;
+        }
+
+        // Mới (chưa xuất)
+        return LoHang.TrangThaiLoHang.MOI;
+    }
+
+    /**
+     * Cập nhật hoặc tạo mới bản ghi hang_hoa_vi_tri
+     */
+    private void updateHangHoaViTri(ChiTietPhieuNhap chiTiet, LoHang loHang) {
+        Long hangHoaId = chiTiet.getHangHoa().getId();
+        Long viTriKhoId = chiTiet.getViTriKho().getId();
+        Long loHangId = loHang != null ? loHang.getId() : null;
+
+        // Tìm bản ghi hiện có
+        Optional<HangHoaViTri> existingOpt = hangHoaViTriRepository
+                .findByHangHoaIdAndViTriKhoIdAndLoHangId(hangHoaId, viTriKhoId, loHangId);
+
+        HangHoaViTri hangHoaViTri;
+
+        if (existingOpt.isPresent()) {
+            // Cập nhật số lượng
+            hangHoaViTri = existingOpt.get();
+            hangHoaViTri.setSoLuong(hangHoaViTri.getSoLuong() + chiTiet.getSoLuong());
+            log.info("Updated hang_hoa_vi_tri: HangHoa={}, ViTri={}, LoHang={}, OldQty={}, NewQty={}",
+                    hangHoaId, viTriKhoId, loHangId,
+                    hangHoaViTri.getSoLuong() - chiTiet.getSoLuong(),
+                    hangHoaViTri.getSoLuong());
+        } else {
+            // Tạo mới
+            hangHoaViTri = HangHoaViTri.builder()
+                    .hangHoa(chiTiet.getHangHoa())
+                    .viTriKho(chiTiet.getViTriKho())
+                    .loHang(loHang)
+                    .soLuong(chiTiet.getSoLuong())
+                    .build();
+            log.info("Created new hang_hoa_vi_tri: HangHoa={}, ViTri={}, LoHang={}, Qty={}",
+                    hangHoaId, viTriKhoId, loHangId, chiTiet.getSoLuong());
+        }
+
+        hangHoaViTriRepository.save(hangHoaViTri);
+
+        // Cập nhật trạng thái vị trí kho
+        updateViTriKhoStatus(chiTiet.getViTriKho());
+    }
+
+    /**
+     * Cập nhật trạng thái vị trí kho dựa trên số lượng hàng
+     */
+    private void updateViTriKhoStatus(ViTriKho viTriKho) {
+        Long soLuongHangHoa = hangHoaViTriRepository.countByViTriKhoId(viTriKho.getId());
+
+        ViTriKho.TrangThaiViTri trangThaiMoi;
+
+        if (soLuongHangHoa == 0) {
+            trangThaiMoi = ViTriKho.TrangThaiViTri.TRONG;
+        } else if (viTriKho.getSucChuaToiDa() != null &&
+                viTriKho.getSucChuaToiDa() > 0 &&
+                soLuongHangHoa >= viTriKho.getSucChuaToiDa() * 0.9) {
+            trangThaiMoi = ViTriKho.TrangThaiViTri.DAY;
+        } else {
+            trangThaiMoi = ViTriKho.TrangThaiViTri.CO_HANG;
+        }
+
+        // ✅ THÊM SAVE VÀ CHECK
+        if (viTriKho.getTrangThai() != trangThaiMoi) {
+            viTriKho.setTrangThai(trangThaiMoi);
+            viTriKhoRepository.save(viTriKho);
+            log.info("Updated vi tri kho ID: {} status to {}",
+                    viTriKho.getId(), trangThaiMoi);
+        }
+    }
+
+
 }

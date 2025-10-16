@@ -3,6 +3,8 @@ package com.hospital.warehouse.hospital_warehouse.repository;
 import com.hospital.warehouse.hospital_warehouse.entity.PhieuNhapKho;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -25,4 +27,10 @@ public interface PhieuNhapKhoRepository extends JpaRepository<PhieuNhapKho, Long
 
     List<PhieuNhapKho> findByKhoIdAndNgayNhapBetween(
             Long khoId, LocalDateTime start, LocalDateTime end);
+
+
+    @Query("SELECT COALESCE(MAX(CAST(SUBSTRING(p.maPhieuNhap, :prefixLength + 1, 4) AS long)), 0) " +
+            "FROM PhieuNhapKho p WHERE p.maPhieuNhap LIKE :prefix")
+    Long findMaxNumberByPrefix(@Param("prefix") String prefix,
+                               @Param("prefixLength") int prefixLength);
 }

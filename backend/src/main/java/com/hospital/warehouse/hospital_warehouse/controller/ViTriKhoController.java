@@ -1,5 +1,6 @@
 package com.hospital.warehouse.hospital_warehouse.controller;
 
+import com.hospital.warehouse.hospital_warehouse.dto.ApiResponse;
 import com.hospital.warehouse.hospital_warehouse.dto.PageResponse;
 import com.hospital.warehouse.hospital_warehouse.dto.ViTriKhoDTO;
 import com.hospital.warehouse.hospital_warehouse.entity.ViTriKho;
@@ -9,13 +10,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
+import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/vi-tri-kho")
 @RequiredArgsConstructor
@@ -28,7 +29,7 @@ public class ViTriKhoController {
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<PageResponse<ViTriKhoDTO>> getAllViTriKho(
+    public ResponseEntity<ApiResponse<PageResponse<ViTriKhoDTO>>> getAllViTriKho(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long khoId,
             @RequestParam(required = false) ViTriKho.LoaiViTri loaiViTri,
@@ -45,7 +46,11 @@ public class ViTriKhoController {
         PageResponse<ViTriKhoDTO> response = viTriKhoService.getAllViTriKho(
                 search, khoId, loaiViTri, trangThai, pageable);
 
-        return ResponseEntity.ok(response);
+        // ✅ THÊM LOG ĐỂ DEBUG
+        log.info("📦 Returning {} vi tri kho for kho ID: {}",
+                response.getContent().size(), khoId);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
@@ -53,30 +58,34 @@ public class ViTriKhoController {
      */
     @GetMapping("/tree/{khoId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<List<ViTriKhoDTO>> getViTriKhoTree(@PathVariable Long khoId) {
+    public ResponseEntity<ApiResponse<List<ViTriKhoDTO>>> getViTriKhoTree(
+            @PathVariable Long khoId) {
         List<ViTriKhoDTO> tree = viTriKhoService.getViTriKhoTree(khoId);
-        return ResponseEntity.ok(tree);
+        return ResponseEntity.ok(ApiResponse.success(tree));
     }
 
     /**
      * Lấy danh sách vị trí trống
+     * QUAN TRỌNG: Endpoint cụ thể /trong phải đặt TRƯỚC /{id}
      */
     @GetMapping("/trong")
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<List<ViTriKhoDTO>> getViTriTrong(
+    public ResponseEntity<ApiResponse<List<ViTriKhoDTO>>> getViTriTrong(
             @RequestParam Long khoId) {
-        List<ViTriKhoDTO> list = viTriKhoService.getViTriTrong(khoId);
-        return ResponseEntity.ok(list);
+        List<ViTriKhoDTO> list = viTriKhoService.getViTriTrongByKhoId(khoId);
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
     /**
      * Lấy chi tiết vị trí kho
+     * QUAN TRỌNG: Endpoint động /{id} phải đặt SAU các endpoint cụ thể
      */
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<ViTriKhoDTO> getViTriKhoById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ViTriKhoDTO>> getViTriKhoById(
+            @PathVariable Long id) {
         return viTriKhoService.getViTriKhoById(id)
-                .map(ResponseEntity::ok)
+                .map(dto -> ResponseEntity.ok(ApiResponse.success(dto)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -85,10 +94,16 @@ public class ViTriKhoController {
      */
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO')")
-    public ResponseEntity<ViTriKhoDTO> createViTriKho(
+    public ResponseEntity<ApiResponse<ViTriKhoDTO>> createViTriKho(
             @Valid @RequestBody ViTriKhoDTO dto) {
-        ViTriKhoDTO created = viTriKhoService.createViTriKho(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        try {
+            ViTriKhoDTO created = viTriKhoService.createViTriKho(dto);
+            return ResponseEntity.ok(ApiResponse.success("Tạo vị trí kho thành công", created));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     /**
@@ -96,11 +111,17 @@ public class ViTriKhoController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO')")
-    public ResponseEntity<ViTriKhoDTO> updateViTriKho(
+    public ResponseEntity<ApiResponse<ViTriKhoDTO>> updateViTriKho(
             @PathVariable Long id,
             @Valid @RequestBody ViTriKhoDTO dto) {
-        ViTriKhoDTO updated = viTriKhoService.updateViTriKho(id, dto);
-        return ResponseEntity.ok(updated);
+        try {
+            ViTriKhoDTO updated = viTriKhoService.updateViTriKho(id, dto);
+            return ResponseEntity.ok(ApiResponse.success("Cập nhật vị trí kho thành công", updated));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     /**
@@ -108,8 +129,14 @@ public class ViTriKhoController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteViTriKho(@PathVariable Long id) {
-        viTriKhoService.deleteViTriKho(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApiResponse<Void>> deleteViTriKho(@PathVariable Long id) {
+        try {
+            viTriKhoService.deleteViTriKho(id);
+            return ResponseEntity.ok(ApiResponse.success("Xóa vị trí kho thành công", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 }

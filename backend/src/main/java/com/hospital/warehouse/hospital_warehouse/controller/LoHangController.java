@@ -1,5 +1,6 @@
 package com.hospital.warehouse.hospital_warehouse.controller;
 
+import com.hospital.warehouse.hospital_warehouse.dto.ApiResponse;
 import com.hospital.warehouse.hospital_warehouse.dto.LoHangDTO;
 import com.hospital.warehouse.hospital_warehouse.dto.PageResponse;
 import com.hospital.warehouse.hospital_warehouse.entity.LoHang;
@@ -30,7 +31,7 @@ public class LoHangController {
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<PageResponse<LoHangDTO>> getAllLoHang(
+    public ResponseEntity<ApiResponse<PageResponse<LoHangDTO>>> getAllLoHang(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long hangHoaId,
             @RequestParam(required = false) Long nhaCungCapId,
@@ -50,28 +51,26 @@ public class LoHangController {
         PageResponse<LoHangDTO> response = loHangService.getAllLoHang(
                 search, hangHoaId, nhaCungCapId, trangThai, tuNgay, denNgay, sapHetHan, pageable);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
      * Lấy danh sách lô hàng theo hàng hóa
      */
     @GetMapping("/hang-hoa/{hangHoaId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<List<LoHangDTO>> getLoHangByHangHoa(@PathVariable Long hangHoaId) {
+    public ResponseEntity<ApiResponse<List<LoHangDTO>>> getLoHangByHangHoa(@PathVariable Long hangHoaId) {
         List<LoHangDTO> list = loHangService.getLoHangByHangHoa(hangHoaId);
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(ApiResponse.success(list));
     }
 
     /**
      * Lấy danh sách lô sắp hết hạn
      */
     @GetMapping("/sap-het-han")
-    @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<List<LoHangDTO>> getLoHangSapHetHan(
+    public ResponseEntity<ApiResponse<List<LoHangDTO>>> getLoHangSapHetHan(
             @RequestParam(defaultValue = "30") int soNgay) {
         List<LoHangDTO> list = loHangService.getLoHangSapHetHan(soNgay);
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(ApiResponse.success(list)); // ✅ WRAP
     }
 
     /**
@@ -79,19 +78,18 @@ public class LoHangController {
      */
     @GetMapping("/het-hang")
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO')")
-    public ResponseEntity<List<LoHangDTO>> getLoHangHetHang() {
+    public ResponseEntity<ApiResponse<List<LoHangDTO>>> getLoHangHetHang() {  // ✅ ĐỔI
         List<LoHangDTO> list = loHangService.getLoHangHetHang();
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(ApiResponse.success(list));  // ✅ WRAP
     }
 
     /**
      * Lấy chi tiết lô hàng
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<LoHangDTO> getLoHangById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<LoHangDTO>> getLoHangById(@PathVariable Long id) {
         return loHangService.getLoHangById(id)
-                .map(ResponseEntity::ok)
+                .map(dto -> ResponseEntity.ok(ApiResponse.success(dto))) // ✅ WRAP
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -100,31 +98,57 @@ public class LoHangController {
      */
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<LoHangDTO> createLoHang(@Valid @RequestBody LoHangDTO dto) {
-        LoHangDTO created = loHangService.createLoHang(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<ApiResponse<LoHangDTO>> createLoHang(  // ✅ ĐỔI
+                                                                 @Valid @RequestBody LoHangDTO dto) {
+        try {
+            LoHangDTO created = loHangService.createLoHang(dto);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Tạo lô hàng thành công", created)  // ✅ WRAP
+            );
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        }
     }
-
     /**
      * Cập nhật lô hàng
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO')")
-    public ResponseEntity<LoHangDTO> updateLoHang(
-            @PathVariable Long id,
-            @Valid @RequestBody LoHangDTO dto) {
-        LoHangDTO updated = loHangService.updateLoHang(id, dto);
-        return ResponseEntity.ok(updated);
+    public ResponseEntity<ApiResponse<LoHangDTO>> updateLoHang(  // ✅ ĐỔI
+                                                                 @PathVariable Long id,
+                                                                 @Valid @RequestBody LoHangDTO dto) {
+        try {
+            LoHangDTO updated = loHangService.updateLoHang(id, dto);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Cập nhật lô hàng thành công", updated)  // ✅ WRAP
+            );
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        }
     }
+
 
     /**
      * Xóa lô hàng
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteLoHang(@PathVariable Long id) {
-        loHangService.deleteLoHang(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApiResponse<Void>> deleteLoHang(@PathVariable Long id) {  // ✅ ĐỔI
+        try {
+            loHangService.deleteLoHang(id);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Xóa lô hàng thành công", null)  // ✅ WRAP
+            );
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     /**

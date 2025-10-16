@@ -29,6 +29,9 @@ public class LoHangDTO {
 
     private String tenDonViTinh;
 
+    // ✅ THÊM FIELD NÀY
+    private String hinhAnhUrl;
+
     @NotBlank(message = "Vui lòng nhập số lô")
     @Size(max = 50, message = "Số lô không được quá 50 ký tự")
     private String soLo;

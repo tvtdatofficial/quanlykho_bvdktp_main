@@ -27,4 +27,15 @@ public interface HangHoaViTriRepository extends JpaRepository<HangHoaViTri, Long
     Long countByViTriKhoId(Long viTriKhoId);
 
     void deleteByViTriKhoId(Long viTriKhoId);
+
+
+    @Query("SELECT COALESCE(SUM(hhvt.soLuong), 0) " +
+            "FROM HangHoaViTri hhvt WHERE hhvt.viTriKho.id = :viTriKhoId")
+    Optional<Integer> sumSoLuongByViTriKhoId(@Param("viTriKhoId") Long viTriKhoId);
+
+
+
+
+    List<HangHoaViTri> findByHangHoaIdAndLoHangId(Long hangHoaId, Long loHangId);
+
 }

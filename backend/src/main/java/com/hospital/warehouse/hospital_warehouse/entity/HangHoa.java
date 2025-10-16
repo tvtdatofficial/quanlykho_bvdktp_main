@@ -112,7 +112,7 @@ public class HangHoa {
 
     // Thay vì các annotation JSON phức tạp:
     @Lob
-    @Column(name = "hinh_anh_url", columnDefinition = "longtext")
+    @Column(name = "hinh_anh_url", length = 500, columnDefinition = "VARCHAR(500) DEFAULT NULL")
     private String hinhAnhUrl;
 
     @Lob
@@ -179,6 +179,10 @@ public class HangHoa {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Column(name = "ngay_nhap_gan_nhat")
     private LocalDateTime ngayNhapGanNhat;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Column(name = "ngay_xuat_gan_nhat")
+    private LocalDateTime ngayXuatGanNhat;
 
     @PrePersist
     public void prePersist() {

@@ -21,6 +21,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -346,5 +348,124 @@ public class HangHoaService {
                     .orElse(null);
         }
         return null;
+    }
+
+    // ==================== 🔥 BỔ SUNG 2 METHOD MỚI - HỖ TRỢ CẬP NHẬT TỒN KHO ====================
+
+    /**
+     * ✅ METHOD 1: Cập nhật tồn kho sau khi nhập hàng
+     * Được gọi từ: PhieuNhapKhoService.updateInventoryFromNhap()
+     *
+     * Logic:
+     * 1. Cộng số lượng vào tồn kho
+     * 2. Tính lại giá nhập trung bình (WAVG)
+     * 3. Cập nhật ngày nhập gần nhất
+     *
+     * @param hangHoaId ID hàng hóa
+     * @param soLuongNhap Số lượng nhập thêm
+     * @param donGia Đơn giá nhập
+     */
+    @Transactional
+    public void capNhatTonKhoSauNhap(Long hangHoaId, Integer soLuongNhap, BigDecimal donGia) {
+        log.info("📥 Updating inventory after NHAP: HangHoaId={}, Qty={}, Price={}",
+                hangHoaId, soLuongNhap, donGia);
+
+        // BƯỚC 1: Lấy thông tin hàng hóa
+        HangHoa hangHoa = hangHoaRepository.findById(hangHoaId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Không tìm thấy hàng hóa với ID: " + hangHoaId));
+
+        // BƯỚC 2: Lấy số lượng cũ
+        Integer oldTongSoLuong = hangHoa.getTongSoLuong() != null ?
+                hangHoa.getTongSoLuong() : 0;
+        Integer oldSoLuongCoTheXuat = hangHoa.getSoLuongCoTheXuat() != null ?
+                hangHoa.getSoLuongCoTheXuat() : 0;
+
+        // BƯỚC 3: Cập nhật số lượng mới
+        hangHoa.setTongSoLuong(oldTongSoLuong + soLuongNhap);
+        hangHoa.setSoLuongCoTheXuat(oldSoLuongCoTheXuat + soLuongNhap);
+
+        // BƯỚC 4: Tính giá nhập trung bình (Weighted Average)
+        // WAVG = (Giá cũ × SL cũ + Giá mới × SL mới) / Tổng SL
+        BigDecimal giaNhapTrungBinhCu = hangHoa.getGiaNhapTrungBinh() != null ?
+                hangHoa.getGiaNhapTrungBinh() : BigDecimal.ZERO;
+
+        BigDecimal tongGiaTriCu = giaNhapTrungBinhCu
+                .multiply(new BigDecimal(oldTongSoLuong));
+        BigDecimal giaTriNhapMoi = donGia.multiply(new BigDecimal(soLuongNhap));
+        BigDecimal tongGiaTriMoi = tongGiaTriCu.add(giaTriNhapMoi);
+
+        BigDecimal giaNhapTrungBinhMoi;
+        if (hangHoa.getTongSoLuong() > 0) {
+            giaNhapTrungBinhMoi = tongGiaTriMoi.divide(
+                    new BigDecimal(hangHoa.getTongSoLuong()),
+                    2,
+                    RoundingMode.HALF_UP
+            );
+        } else {
+            giaNhapTrungBinhMoi = BigDecimal.ZERO;
+        }
+
+        hangHoa.setGiaNhapTrungBinh(giaNhapTrungBinhMoi);
+
+        // BƯỚC 5: Cập nhật ngày nhập gần nhất
+        hangHoa.setNgayNhapGanNhat(LocalDateTime.now());
+
+        // BƯỚC 6: Lưu vào DB
+        hangHoaRepository.save(hangHoa);
+
+        log.info("✅ Updated inventory NHAP: {} → {}, AvgPrice {} → {}",
+                oldTongSoLuong, hangHoa.getTongSoLuong(),
+                giaNhapTrungBinhCu, giaNhapTrungBinhMoi);
+    }
+
+    /**
+     * ✅ METHOD 2: Cập nhật tồn kho sau khi xuất hàng
+     * Được gọi từ: PhieuXuatKhoService.processChiTietXuatKho()
+     *
+     * Logic:
+     * 1. Kiểm tra đủ hàng để xuất
+     * 2. Trừ số lượng khỏi tồn kho
+     * 3. Cập nhật ngày xuất gần nhất
+     *
+     * @param hangHoaId ID hàng hóa
+     * @param soLuongXuat Số lượng xuất
+     * @throws IllegalStateException Nếu không đủ hàng
+     */
+    @Transactional
+    public void capNhatTonKhoSauXuat(Long hangHoaId, Integer soLuongXuat) {
+        log.info("📤 Updating inventory after XUAT: HangHoaId={}, Qty={}",
+                hangHoaId, soLuongXuat);
+
+        // BƯỚC 1: Lấy thông tin hàng hóa
+        HangHoa hangHoa = hangHoaRepository.findById(hangHoaId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Không tìm thấy hàng hóa với ID: " + hangHoaId));
+
+        // BƯỚC 2: Kiểm tra tồn kho
+        Integer tonKhoHienTai = hangHoa.getSoLuongCoTheXuat() != null ?
+                hangHoa.getSoLuongCoTheXuat() : 0;
+
+        if (tonKhoHienTai < soLuongXuat) {
+            String errorMsg = String.format(
+                    "Không đủ hàng để xuất! Hàng hóa '%s': Yêu cầu %d, Tồn kho %d",
+                    hangHoa.getTenHangHoa(), soLuongXuat, tonKhoHienTai
+            );
+            log.error("❌ {}", errorMsg);
+            throw new IllegalStateException(errorMsg);
+        }
+
+        // BƯỚC 3: Trừ số lượng
+        hangHoa.setSoLuongCoTheXuat(tonKhoHienTai - soLuongXuat);
+        hangHoa.setTongSoLuong(hangHoa.getTongSoLuong() - soLuongXuat);
+
+        // BƯỚC 4: Cập nhật ngày xuất gần nhất
+        hangHoa.setNgayXuatGanNhat(LocalDateTime.now());
+
+        // BƯỚC 5: Lưu vào DB
+        hangHoaRepository.save(hangHoa);
+
+        log.info("✅ Updated inventory XUAT: {} → {}",
+                tonKhoHienTai, hangHoa.getSoLuongCoTheXuat());
     }
 }

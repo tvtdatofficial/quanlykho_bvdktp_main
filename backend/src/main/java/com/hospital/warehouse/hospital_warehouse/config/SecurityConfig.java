@@ -61,6 +61,7 @@ public class SecurityConfig {
                         // ========== PUBLIC ENDPOINTS ==========
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/files/view/**").permitAll()
 
                         // ========== API ENDPOINTS với /api prefix ==========
                         .requestMatchers("/api/kho/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
@@ -73,6 +74,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/danh-muc/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
                         .requestMatchers("/api/don-vi-tinh/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
                         .requestMatchers("/api/khoa-phong/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
+                        .requestMatchers("/api/files/upload/**").hasAnyRole("ADMIN", "QUAN_LY_KHO")  // ✅ THÊM - Chỉ cho phép upload với token
+                        .requestMatchers("/api/files/delete").hasAnyRole("ADMIN", "QUAN_LY_KHO")
 
                         // ========== USER MANAGEMENT APIs ==========
                         .requestMatchers("/api/user/current").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
@@ -113,7 +116,7 @@ public class SecurityConfig {
         );
 
         configuration.setAllowedOrigins(allowedOrigins);
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE","PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
 

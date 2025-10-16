@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -281,5 +282,21 @@ public class ViTriKhoService {
         }
 
         return dto;
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<ViTriKhoDTO> getViTriTrongByKhoId(Long khoId) {
+        List<ViTriKho> viTriList = viTriKhoRepository.findByKhoIdAndTrangThaiIn(
+                khoId,
+                Arrays.asList(
+                        ViTriKho.TrangThaiViTri.TRONG,
+                        ViTriKho.TrangThaiViTri.CO_HANG
+                )
+        );
+
+        return viTriList.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 }

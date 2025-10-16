@@ -30,4 +30,11 @@ public interface ViTriKhoRepository extends JpaRepository<ViTriKho, Long>,
     List<ViTriKho> findByKhoIdAndTrangThai(
             @Param("khoId") Long khoId,
             @Param("trangThai") ViTriKho.TrangThaiViTri trangThai);
+
+
+    List<ViTriKho> findByKhoIdAndTrangThaiIn(
+            Long khoId,
+            List<ViTriKho.TrangThaiViTri> trangThaiList
+    );
 }
+

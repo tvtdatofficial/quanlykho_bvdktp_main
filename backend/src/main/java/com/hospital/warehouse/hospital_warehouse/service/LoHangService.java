@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -138,37 +141,43 @@ public class LoHangService {
         HangHoa hangHoa = hangHoaRepository.findById(dto.getHangHoaId())
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy hàng hóa"));
 
-        // Kiểm tra trùng số lô
-        Optional<LoHang> existing = loHangRepository.findByHangHoaIdAndSoLo(
-                dto.getHangHoaId(), dto.getSoLo());
+        // ✅ SỬA: Kiểm tra trùng lô theo hangHoaId + soLo + hanSuDung
+        Optional<LoHang> existing = loHangRepository.findByHangHoaIdAndSoLoAndHanSuDung(
+                dto.getHangHoaId(),
+                dto.getSoLo(),
+                dto.getHanSuDung()  // ✅ THÊM THAM SỐ NÀY
+        );
+
         if (existing.isPresent()) {
-            throw new IllegalArgumentException("Số lô đã tồn tại cho hàng hóa này");
+            throw new IllegalArgumentException(
+                    "Lô hàng với số lô '" + dto.getSoLo() +
+                            "' và HSD '" + dto.getHanSuDung() +
+                            "' đã tồn tại cho hàng hóa này"
+            );
         }
 
+        // ... phần còn lại giữ nguyên
         LoHang loHang = new LoHang();
         loHang.setHangHoa(hangHoa);
         loHang.setSoLo(dto.getSoLo());
         loHang.setNgaySanXuat(dto.getNgaySanXuat());
         loHang.setHanSuDung(dto.getHanSuDung());
         loHang.setSoLuongNhap(dto.getSoLuongNhap());
-        loHang.setSoLuongHienTai(dto.getSoLuongNhap()); // Ban đầu bằng số lượng nhập
+        loHang.setSoLuongHienTai(dto.getSoLuongNhap());
         loHang.setGiaNhap(dto.getGiaNhap());
         loHang.setSoChungTuNhap(dto.getSoChungTuNhap());
         loHang.setGhiChu(dto.getGhiChu());
 
-        // Set nhà cung cấp nếu có
         if (dto.getNhaCungCapId() != null) {
             NhaCungCap ncc = nhaCungCapRepository.findById(dto.getNhaCungCapId())
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhà cung cấp"));
             loHang.setNhaCungCap(ncc);
         }
 
-        // Xác định trạng thái
         loHang.setTrangThai(determineLoHangStatus(loHang));
-
         loHang = loHangRepository.save(loHang);
-        log.info("Created lo hang successfully with ID: {}", loHang.getId());
 
+        log.info("Created lo hang successfully with ID: {}", loHang.getId());
         return convertToDTO(loHang);
     }
 
@@ -338,6 +347,10 @@ public class LoHangService {
                 .tenHangHoa(hangHoa.getTenHangHoa())
                 .tenDonViTinh(hangHoa.getDonViTinh() != null ?
                         hangHoa.getDonViTinh().getTenDvt() : null)
+
+                // ✅ THÊM DÒNG NÀY
+                .hinhAnhUrl(hangHoa.getHinhAnhUrl())
+
                 .soLo(entity.getSoLo())
                 .ngaySanXuat(entity.getNgaySanXuat())
                 .hanSuDung(entity.getHanSuDung())
@@ -356,5 +369,183 @@ public class LoHangService {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    // ==================== 🔥 BỔ SUNG 3 METHOD MỚI - DÙNG CHO NHẬP/XUẤT KHO ====================
+
+    /**
+     * ✅ METHOD 1: Tìm hoặc tạo lô hàng khi nhập kho
+     * Được gọi từ: PhieuNhapKhoService.processChiTietNhapKho()
+     *
+     * Logic:
+     * 1. Tìm lô đã tồn tại với cùng (hangHoaId + soLo + hanSuDung)
+     * 2. Nếu có: Cộng dồn số lượng + tính lại giá trung bình (WAVG)
+     * 3. Nếu không: Tạo lô mới
+     *
+     * @param chiTiet Chi tiết phiếu nhập (chứa info hàng hóa, số lô, HSD)
+     * @param phieuNhap Phiếu nhập gốc (để lấy NCC, mã phiếu)
+     * @return Lô hàng đã tạo/cập nhật
+     */
+    @Transactional
+    public LoHang findOrCreateLoHang(ChiTietPhieuNhap chiTiet, PhieuNhapKho phieuNhap) {
+        HangHoa hangHoa = chiTiet.getHangHoa();
+
+        log.info("🔍 Finding/Creating lo hang for HangHoa={}, SoLo={}, HSD={}",
+                hangHoa.getTenHangHoa(), chiTiet.getSoLo(), chiTiet.getHanSuDung());
+
+        // BƯỚC 1: Tìm lô đã tồn tại (theo hangHoaId + soLo + hanSuDung)
+        Optional<LoHang> existingLo = loHangRepository
+                .findByHangHoaIdAndSoLoAndHanSuDung(
+                        hangHoa.getId(),
+                        chiTiet.getSoLo(),
+                        chiTiet.getHanSuDung()
+                );
+
+        if (existingLo.isPresent()) {
+            // ✅ CẬP NHẬT LÔ ĐÃ TỒN TẠI
+            LoHang lo = existingLo.get();
+
+            int soLuongCu = lo.getSoLuongNhap();
+            int soLuongMoi = chiTiet.getSoLuong();
+            int tongSoLuong = soLuongCu + soLuongMoi;
+
+            // Tính giá nhập trung bình theo công thức WAVG
+            // WAVG = (Giá cũ × Số lượng cũ + Giá mới × Số lượng mới) / Tổng số lượng
+            BigDecimal giaCu = lo.getGiaNhap();
+            BigDecimal giaMoi = chiTiet.getDonGia();
+
+            BigDecimal tongGiaTriCu = giaCu.multiply(new BigDecimal(soLuongCu));
+            BigDecimal giaTriNhapMoi = giaMoi.multiply(new BigDecimal(soLuongMoi));
+            BigDecimal tongGiaTri = tongGiaTriCu.add(giaTriNhapMoi);
+
+            BigDecimal giaTrungBinh = tongGiaTri.divide(
+                    new BigDecimal(tongSoLuong),
+                    2,
+                    RoundingMode.HALF_UP
+            );
+
+            // Cập nhật thông tin lô
+            lo.setSoLuongNhap(tongSoLuong);
+            lo.setSoLuongHienTai(lo.getSoLuongHienTai() + soLuongMoi);
+            lo.setGiaNhap(giaTrungBinh);
+            lo.setTrangThai(determineLoHangStatus(lo));
+
+            LoHang saved = loHangRepository.save(lo);
+
+            log.info("✅ Updated existing lo_hang ID={}: Qty {} → {}, Avg Price {} → {}",
+                    saved.getId(), soLuongCu, saved.getSoLuongNhap(), giaCu, giaTrungBinh);
+
+            return saved;
+
+        } else {
+            // ✅ TẠO LÔ MỚI
+            LoHang loMoi = LoHang.builder()
+                    .hangHoa(hangHoa)
+                    .soLo(chiTiet.getSoLo())
+                    .ngaySanXuat(chiTiet.getNgaySanXuat())
+                    .hanSuDung(chiTiet.getHanSuDung())
+                    .soLuongNhap(chiTiet.getSoLuong())
+                    .soLuongHienTai(chiTiet.getSoLuong())
+                    .giaNhap(chiTiet.getDonGia())
+                    .nhaCungCap(phieuNhap.getNhaCungCap())
+                    .soChungTuNhap(phieuNhap.getMaPhieuNhap())
+                    .trangThai(LoHang.TrangThaiLoHang.DANG_SU_DUNG)
+                    .build();
+
+            LoHang saved = loHangRepository.save(loMoi);
+
+            log.info("✅ Created new lo_hang ID={}: SoLo={}, HSD={}, Qty={}, Price={}",
+                    saved.getId(), saved.getSoLo(), saved.getHanSuDung(),
+                    saved.getSoLuongNhap(), saved.getGiaNhap());
+
+            return saved;
+        }
+    }
+
+    /**
+     * ✅ METHOD 2: Chọn danh sách lô theo FIFO để xuất kho
+     * Được gọi từ: PhieuXuatKhoService.processChiTietXuatKho()
+     *
+     * Logic:
+     * 1. Gọi repository lấy danh sách lô có thể xuất (đã sắp xếp FIFO)
+     * 2. Return danh sách để service xuất kho xử lý tiếp
+     *
+     * Nguyên tắc FIFO (First In First Out):
+     * - Ưu tiên lô có hạn sử dụng sớm nhất
+     * - Nếu cùng HSD → ưu tiên lô sản xuất sớm
+     * - Nếu cùng ngày SX → ưu tiên lô nhập kho sớm (ID nhỏ)
+     */
+    @Transactional(readOnly = true)
+    public List<LoHang> chonLoTheoFIFO(Long hangHoaId, int soLuongCanXuat) {
+        log.info("🔍 Selecting lo hang FIFO: HangHoaId={}, RequiredQty={}",
+                hangHoaId, soLuongCanXuat);
+
+        // Lấy danh sách lô khả dụng (query đã sắp xếp sẵn FIFO trong repository)
+        List<LoHang> loList = loHangRepository
+                .findAvailableLoHangForXuat(hangHoaId);
+
+        if (loList.isEmpty()) {
+            log.warn("⚠️ No available lo_hang found for HangHoaId={}", hangHoaId);
+            return List.of();
+        }
+
+        // Log thông tin các lô tìm được
+        log.info("✅ Found {} available lo_hang (sorted by FIFO):", loList.size());
+        for (int i = 0; i < Math.min(loList.size(), 5); i++) {
+            LoHang lo = loList.get(i);
+            log.info("   {}. LoHang ID={}, SoLo={}, HSD={}, Qty={}",
+                    i + 1, lo.getId(), lo.getSoLo(), lo.getHanSuDung(), lo.getSoLuongHienTai());
+        }
+
+        return loList;
+    }
+
+    /**
+     * ✅ METHOD 3: Trừ số lượng từ một lô hàng khi xuất
+     * Được gọi từ: PhieuXuatKhoService.processChiTietXuatKho()
+     *
+     * Logic:
+     * 1. Kiểm tra lô có đủ hàng không
+     * 2. Trừ số lượng xuất
+     * 3. Cập nhật trạng thái lô (nếu hết hàng → HET_HANG)
+     * 4. Lưu lại database
+     */
+    @Transactional
+    public void truSoLuongLo(Long loId, int soLuongXuat) {
+        log.info("📤 Reducing lo_hang ID={} by quantity={}", loId, soLuongXuat);
+
+        // BƯỚC 1: Lấy thông tin lô
+        LoHang lo = loHangRepository.findById(loId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Không tìm thấy lô hàng với ID: " + loId));
+
+        // BƯỚC 2: Kiểm tra đủ hàng
+        int soLuongHienTai = lo.getSoLuongHienTai();
+        if (soLuongHienTai < soLuongXuat) {
+            String errorMsg = String.format(
+                    "Lô '%s' (HSD: %s) không đủ hàng: Còn %d, yêu cầu xuất %d",
+                    lo.getSoLo(),
+                    lo.getHanSuDung(),
+                    soLuongHienTai,
+                    soLuongXuat
+            );
+            log.error("❌ {}", errorMsg);
+            throw new IllegalStateException(errorMsg);
+        }
+
+        // BƯỚC 3: Trừ số lượng
+        int soLuongConLai = soLuongHienTai - soLuongXuat;
+        lo.setSoLuongHienTai(soLuongConLai);
+
+        // BƯỚC 4: Cập nhật trạng thái
+        LoHang.TrangThaiLoHang trangThaiCu = lo.getTrangThai();
+        LoHang.TrangThaiLoHang trangThaiMoi = determineLoHangStatus(lo);
+        lo.setTrangThai(trangThaiMoi);
+
+        // BƯỚC 5: Lưu vào DB
+        loHangRepository.save(lo);
+
+        log.info("✅ Reduced lo_hang ID={}: Qty {} → {}, Status {} → {}",
+                loId, soLuongHienTai, soLuongConLai, trangThaiCu, trangThaiMoi);
     }
 }

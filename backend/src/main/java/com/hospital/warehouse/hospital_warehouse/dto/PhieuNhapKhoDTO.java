@@ -133,6 +133,9 @@ public class PhieuNhapKhoDTO {
 
         private String tenDonViTinh;
 
+        // ✅ THÊM DÒNG NÀY
+        private String hinhAnhUrl;
+
         private Long loHangId;
 
         private Long viTriKhoId;

@@ -114,7 +114,7 @@ public class UserService implements UserDetailsService {
     private UserDTO convertToDTO(User user) {
         return UserDTO.builder()
                 .id(user.getId())
-                .maUser(user.getMaUser()) // Thêm field này
+                .maUser(user.getMaUser())
                 .tenDangNhap(user.getTenDangNhap())
                 .email(user.getEmail())
                 .hoTen(user.getHoTen())

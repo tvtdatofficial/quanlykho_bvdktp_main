@@ -21,4 +21,15 @@ public interface ChiTietPhieuNhapRepository extends JpaRepository<ChiTietPhieuNh
     void deleteByPhieuNhapId(@Param("phieuNhapId") Long phieuNhapId);
 
     List<ChiTietPhieuNhap> findByHangHoaId(Long hangHoaId);
+
+    List<ChiTietPhieuNhap> findByLoHangId(Long loHangId);
+
+    // ✅ SỬA BẰNG FETCH JOIN
+    @Query("SELECT ct FROM ChiTietPhieuNhap ct " +
+            "JOIN FETCH ct.hangHoa h " +
+            "JOIN FETCH h.donViTinh " +
+            "LEFT JOIN FETCH ct.viTriKho " +
+            "LEFT JOIN FETCH ct.loHang " +
+            "WHERE ct.phieuNhap.id = :phieuNhapId")
+    List<ChiTietPhieuNhap> findByPhieuNhapIdWithDetails(@Param("phieuNhapId") Long phieuNhapId);
 }

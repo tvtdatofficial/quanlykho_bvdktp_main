@@ -43,6 +43,10 @@ public class ChiTietPhieuXuat {
     @Column(name = "so_luong_xuat", nullable = false)
     private Integer soLuongXuat;
 
+    // ✅ THÊM FIELD NÀY để hiển thị tồn kho tại thời điểm xuất
+    @Column(name = "ton_kho_hien_tai")
+    private Integer tonKhoHienTai;
+
     @Column(name = "don_gia", precision = 15, scale = 2, nullable = false)
     private BigDecimal donGia;
 

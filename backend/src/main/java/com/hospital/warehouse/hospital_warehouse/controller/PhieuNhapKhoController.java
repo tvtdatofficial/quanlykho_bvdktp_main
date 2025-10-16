@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -103,9 +104,20 @@ public class PhieuNhapKhoController {
             PhieuNhapKhoDTO approved = phieuNhapKhoService.duyetPhieuNhap(id);
             return ResponseEntity.ok(ApiResponse.success("Duyệt phiếu nhập thành công", approved));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
+            // Lỗi không tìm thấy phiếu nhập
+            log.error("Không tìm thấy phiếu nhập ID: {}", id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Không tìm thấy phiếu nhập"));
         } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+            // Lỗi nghiệp vụ (vượt sức chứa, trạng thái không hợp lệ, etc.)
+            log.error("Lỗi nghiệp vụ khi duyệt phiếu nhập ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(e.getMessage()));  // ✅ TRẢ MESSAGE GỐC
+        } catch (RuntimeException e) {
+            // Lỗi khác
+            log.error("Lỗi không xác định khi duyệt phiếu nhập ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Lỗi hệ thống: " + e.getMessage()));
         }
     }
 

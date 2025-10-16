@@ -26,10 +26,11 @@ public class ChiTietPhieuNhap {
     @JoinColumn(name = "phieu_nhap_id", nullable = false)
     private PhieuNhapKho phieuNhap;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hang_hoa_id", nullable = false)
     private HangHoa hangHoa;
 
+    // ✅ QUAN TRỌNG: Thêm relationship với LoHang
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lo_hang_id")
     private LoHang loHang;
@@ -41,17 +42,17 @@ public class ChiTietPhieuNhap {
     @Column(name = "so_luong", nullable = false)
     private Integer soLuong;
 
-    @Column(name = "don_gia", precision = 15, scale = 2, nullable = false)
+    @Column(name = "don_gia", nullable = false, precision = 15, scale = 2)
     private BigDecimal donGia;
 
-    @Column(name = "thanh_tien", precision = 15, scale = 2, nullable = false)
+    @Column(name = "thanh_tien", nullable = false, precision = 15, scale = 2)
     private BigDecimal thanhTien;
 
     @Column(name = "tien_thue", precision = 15, scale = 2)
-    private BigDecimal tienThue = BigDecimal.ZERO;
+    private BigDecimal tienThue;
 
     @Column(name = "ty_le_thue", precision = 5, scale = 2)
-    private BigDecimal tyLeThue = BigDecimal.ZERO;
+    private BigDecimal tyLeThue;
 
     @Column(name = "ngay_san_xuat")
     private LocalDate ngaySanXuat;
@@ -59,6 +60,7 @@ public class ChiTietPhieuNhap {
     @Column(name = "han_su_dung")
     private LocalDate hanSuDung;
 
+    // ✅ ĐÚNG: Column name là "so_lo"
     @Column(name = "so_lo", length = 50)
     private String soLo;
 
@@ -67,10 +69,10 @@ public class ChiTietPhieuNhap {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "trang_thai")
-    private TrangThaiChiTiet trangThai = TrangThaiChiTiet.CHO_NHAP;
+    private TrangThaiChiTiet trangThai;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
