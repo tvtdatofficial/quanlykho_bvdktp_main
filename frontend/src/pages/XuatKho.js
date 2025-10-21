@@ -5,6 +5,7 @@ import XuatKhoForm from '../components/forms/XuatKhoForm';
 import { toast } from 'react-toastify';
 import api, { getImageUrl } from '../services/api';
 
+
 const XuatKho = () => {
   const [phieuXuatList, setPhieuXuatList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,8 +32,8 @@ const XuatKho = () => {
           trangThai: selectedStatus || undefined,
           page: currentPage,
           size: 10,
-          sortBy: 'ngayXuat',
-          sortDir: 'desc'
+          sortBy: 'createdAt',        // ✅ ĐỔI: Sắp xếp theo thời gian tạo
+          sortDir: 'desc'              // ✅ GIỮ NGUYÊN: desc = mới nhất trước
         }
       });
       setPhieuXuatList(response.data.data.content || []);
@@ -121,6 +122,35 @@ const XuatKho = () => {
     }
   };
 
+
+  // ✅ THÊM: Handler hủy duyệt
+  const handleHuyDuyetPhieu = async (id) => {
+    const lyDoHuyDuyet = window.prompt(
+      '⚠️ HỦY DUYỆT PHIẾU XUẤT\n\n' +
+      'Hành động này sẽ:\n' +
+      '• Hoàn nguyên tồn kho (cộng lại)\n' +
+      '• Cộng lại số lượng vào lô hàng\n' +
+      '• Chuyển phiếu về trạng thái "Chờ duyệt"\n\n' +
+      'Nhập lý do hủy duyệt:'
+    );
+
+    if (lyDoHuyDuyet === null) return;
+
+    if (!lyDoHuyDuyet.trim()) {
+      toast.error('Lý do hủy duyệt không được để trống');
+      return;
+    }
+
+    try {
+      await api.patch(`/api/phieu-xuat/${id}/huy-duyet?lyDoHuyDuyet=${encodeURIComponent(lyDoHuyDuyet)}`);
+      toast.success('✅ Hủy duyệt thành công! Tồn kho đã được hoàn nguyên.');
+      fetchPhieuXuatList();
+    } catch (error) {
+      const message = error.response?.data?.message || 'Lỗi khi hủy duyệt phiếu xuất';
+      toast.error(message);
+    }
+  };
+
   const handleDeletePhieu = async (id, trangThai) => {
     if (trangThai === 'DA_DUYET' || trangThai === 'DA_GIAO') {
       toast.error('Không thể xóa phiếu đã duyệt hoặc đã giao');
@@ -196,7 +226,7 @@ const XuatKho = () => {
         return loaiXuatMap[value] || value;
       }
     },
-    { title: 'Ngày Xuất', dataIndex: 'ngayXuat', render: formatDateTime },
+    { title: 'Ngày Xuất', dataIndex: 'createdAt', render: formatDateTime },
     {
       title: 'Tổng Giá Trị',
       dataIndex: 'tongGiaTri',
@@ -338,10 +368,33 @@ const XuatKho = () => {
             </button>
           )}
 
+          {/* ✅ THÊM: Nút HỦY DUYỆT cho ADMIN */}
           {(record.trangThai === 'DA_DUYET' || record.trangThai === 'DA_GIAO') && (
-            <span style={{ color: '#7f8c8d', fontStyle: 'italic', fontSize: '0.875rem' }}>
-              {record.trangThai === 'DA_DUYET' ? 'Đã duyệt' : 'Đã giao'}
-            </span>
+            <>
+              <span style={{ color: '#7f8c8d', fontStyle: 'italic', fontSize: '0.875rem' }}>
+                {record.trangThai === 'DA_DUYET' ? 'Đã duyệt' : 'Đã giao'}
+              </span>
+
+              {/* Chỉ hiển thị nếu user là ADMIN VÀ chưa giao */}
+              {localStorage.getItem('userRole') === 'ADMIN' && record.trangThai === 'DA_DUYET' && (
+                <button
+                  onClick={() => handleHuyDuyetPhieu(record.id)}
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    backgroundColor: '#e67e22',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '600'
+                  }}
+                  title="Hủy duyệt (chỉ ADMIN)"
+                >
+                  ⚠️ Hủy duyệt
+                </button>
+              )}
+            </>
           )}
         </div>
       )
@@ -627,9 +680,9 @@ const XuatKho = () => {
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                      <span style={{ color: '#7f8c8d' }}>Ngày xuất:</span>
+                      <span style={{ color: '#7f8c8d' }}>Thời gian xuất:</span>
                       <span style={{ fontWeight: '600', color: '#2c3e50' }}>
-                        {formatDateTime(viewingPhieu.ngayXuat)}
+                        {formatDateTime(viewingPhieu.createdAt)}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>

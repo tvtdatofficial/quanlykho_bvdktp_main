@@ -464,7 +464,7 @@ const LoHangForm = ({ initialData, onSubmit, onCancel }) => {
             style={errors.giaNhap ? inputErrorStyle : inputStyle}
             required
             min="0"
-            step="1000"
+            step="any"
           />
           {errors.giaNhap && <div style={errorStyle}>{errors.giaNhap}</div>}
           {formData.giaNhap && (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import api from '../../services/api';
+import api, { getImageUrl } from '../../services/api';
+
 
 const XuatKhoForm = ({ initialData, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -103,7 +104,7 @@ const XuatKhoForm = ({ initialData, onSubmit, onCancel }) => {
         if (hangHoa) {
           newChiTiet[index].tonKhoHienTai = hangHoa.soLuongCoTheXuat || 0;
           newChiTiet[index].donGia = hangHoa.giaNhapTrungBinh || 0;
-          
+
           // Tự động set số lượng xuất = số lượng yêu cầu nếu chưa có
           if (!newChiTiet[index].soLuongXuat && newChiTiet[index].soLuongYeuCau) {
             newChiTiet[index].soLuongXuat = newChiTiet[index].soLuongYeuCau;
@@ -205,7 +206,7 @@ const XuatKhoForm = ({ initialData, onSubmit, onCancel }) => {
     try {
       const submitData = {
         khoId: parseInt(formData.khoId),
-        khoaPhongYeuCauId: formData.khoaPhongYeuCauId ? 
+        khoaPhongYeuCauId: formData.khoaPhongYeuCauId ?
           parseInt(formData.khoaPhongYeuCauId) : null,
         loaiXuat: formData.loaiXuat,
         soPhieuYeuCau: formData.soPhieuYeuCau || null,
@@ -543,75 +544,75 @@ const XuatKhoForm = ({ initialData, onSubmit, onCancel }) => {
                 {formData.chiTiet.map((item, index) => (
                   <tr key={index} style={{ backgroundColor: 'white' }}>
                     <td style={{ padding: '0.5rem', border: '1px solid #dee2e6', minWidth: '250px' }}>
-  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-    {/* ✅ THÊM: Hình ảnh hàng hóa */}
-    {item.hangHoaId && (() => {
-      const selectedHH = hangHoaList.find(h => h.id === parseInt(item.hangHoaId));
-      return selectedHH?.hinhAnhUrl ? (
-        <img
-          src={getImageUrl(selectedHH.hinhAnhUrl)}
-          alt={selectedHH.tenHangHoa}
-          style={{
-            width: '50px',
-            height: '50px',
-            objectFit: 'cover',
-            borderRadius: '6px',
-            border: '2px solid #e0e0e0',
-            flexShrink: 0
-          }}
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI4IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Ti9BPC90ZXh0Pjwvc3ZnPg==';
-          }}
-        />
-      ) : (
-        <div style={{
-          width: '50px',
-          height: '50px',
-          backgroundColor: '#f5f5f5',
-          borderRadius: '6px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '1.2rem',
-          flexShrink: 0
-        }}>
-          📦
-        </div>
-      );
-    })()}
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        {/* ✅ THÊM: Hình ảnh hàng hóa */}
+                        {item.hangHoaId && (() => {
+                          const selectedHH = hangHoaList.find(h => h.id === parseInt(item.hangHoaId));
+                          return selectedHH?.hinhAnhUrl ? (
+                            <img
+                              src={getImageUrl(selectedHH.hinhAnhUrl)}
+                              alt={selectedHH.tenHangHoa}
+                              style={{
+                                width: '50px',
+                                height: '50px',
+                                objectFit: 'cover',
+                                borderRadius: '6px',
+                                border: '2px solid #e0e0e0',
+                                flexShrink: 0
+                              }}
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI4IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Ti9BPC90ZXh0Pjwvc3ZnPg==';
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              width: '50px',
+                              height: '50px',
+                              backgroundColor: '#f5f5f5',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1.2rem',
+                              flexShrink: 0
+                            }}>
+                              📦
+                            </div>
+                          );
+                        })()}
 
-    {/* Select hàng hóa */}
-    <div style={{ flex: 1 }}>
-      <select
-        value={item.hangHoaId}
-        onChange={(e) => updateChiTiet(index, 'hangHoaId', e.target.value)}
-        style={{
-          width: '100%',
-          padding: '0.5rem',
-          border: !item.hangHoaId ? '2px solid #e74c3c' : '1px solid #ddd',
-          borderRadius: '0.375rem',
-          fontSize: '0.875rem',
-          backgroundColor: !item.hangHoaId ? '#fff5f5' : 'white'
-        }}
-      >
-        <option value="">-- Chọn hàng hóa --</option>
-        {hangHoaList.map(hh => (
-          <option key={hh.id} value={hh.id}>
-            {hh.tenHangHoa} (Tồn: {hh.soLuongCoTheXuat || 0})
-          </option>
-        ))}
-      </select>
-    </div>
-  </div>
-</td>
+                        {/* Select hàng hóa */}
+                        <div style={{ flex: 1 }}>
+                          <select
+                            value={item.hangHoaId}
+                            onChange={(e) => updateChiTiet(index, 'hangHoaId', e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              border: !item.hangHoaId ? '2px solid #e74c3c' : '1px solid #ddd',
+                              borderRadius: '0.375rem',
+                              fontSize: '0.875rem',
+                              backgroundColor: !item.hangHoaId ? '#fff5f5' : 'white'
+                            }}
+                          >
+                            <option value="">-- Chọn hàng hóa --</option>
+                            {hangHoaList.map(hh => (
+                              <option key={hh.id} value={hh.id}>
+                                {hh.tenHangHoa} (Tồn: {hh.soLuongCoTheXuat || 0})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </td>
 
                     <td style={{ padding: '0.5rem', border: '1px solid #dee2e6', textAlign: 'center' }}>
                       <span style={{
                         fontWeight: 'bold',
                         fontSize: '1.1rem',
-                        color: item.tonKhoHienTai === 0 ? '#e74c3c' : 
-                               item.tonKhoHienTai < 10 ? '#f39c12' : '#27ae60'
+                        color: item.tonKhoHienTai === 0 ? '#e74c3c' :
+                          item.tonKhoHienTai < 10 ? '#f39c12' : '#27ae60'
                       }}>
                         {item.tonKhoHienTai || 0}
                       </span>
@@ -643,14 +644,14 @@ const XuatKhoForm = ({ initialData, onSubmit, onCancel }) => {
                         style={{
                           width: '80px',
                           padding: '0.5rem',
-                          border: !item.soLuongXuat || item.soLuongXuat <= 0 || item.soLuongXuat > item.tonKhoHienTai ? 
-                                 '2px solid #e74c3c' : '1px solid #ddd',
+                          border: !item.soLuongXuat || item.soLuongXuat <= 0 || item.soLuongXuat > item.tonKhoHienTai ?
+                            '2px solid #e74c3c' : '1px solid #ddd',
                           borderRadius: '0.375rem',
                           textAlign: 'center',
                           fontSize: '0.875rem',
                           fontWeight: '600',
                           backgroundColor: !item.soLuongXuat || item.soLuongXuat <= 0 || item.soLuongXuat > item.tonKhoHienTai ?
-                                          '#fff5f5' : 'white'
+                            '#fff5f5' : 'white'
                         }}
                         min="1"
                         max={item.tonKhoHienTai}
@@ -681,7 +682,7 @@ const XuatKhoForm = ({ initialData, onSubmit, onCancel }) => {
                           fontSize: '0.875rem'
                         }}
                         min="0"
-                        step="1000"
+                        step="any"
                       />
                     </td>
 
@@ -719,7 +720,7 @@ const XuatKhoForm = ({ initialData, onSubmit, onCancel }) => {
                 ))}
               </tbody>
             </table>
-            </div>
+          </div>
         )}
 
         {formData.chiTiet.length > 0 && (

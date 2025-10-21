@@ -32,20 +32,21 @@ const NhapKho = () => {
   }, [currentPage, searchTerm, selectedStatus]);
 
   const fetchPhieuNhapList = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/phieu-nhap', {
-        params: {
-          search: searchTerm,
-          trangThai: selectedStatus || undefined,
-          page: currentPage,
-          size: 10,
-          sortBy: 'ngayNhap',
-          sortDir: 'desc'
-        }
-      });
-      setPhieuNhapList(response.data.data.content || []);
-      setTotalPages(response.data.data.totalPages || 0);
+  setLoading(true);
+  try {
+    const response = await api.get('/api/phieu-nhap', {
+      params: {
+        search: searchTerm,
+        trangThai: selectedStatus || undefined,
+        page: currentPage,
+        size: 10,
+        sortBy: 'createdAt',        // ✅ ĐÃ ĐÚNG
+        sortDir: 'desc'              // ✅ ĐÃ ĐÚNG (desc = mới nhất trước)
+      }
+    });
+    
+    setPhieuNhapList(response.data.data.content || []);
+    setTotalPages(response.data.data.totalPages || 0);
     } catch (error) {
       console.error('Error fetching phieu nhap:', error);
       toast.error('Lỗi khi tải danh sách phiếu nhập');
@@ -139,6 +140,34 @@ const NhapKho = () => {
     }
   };
 
+  // ✅ THÊM: Handler hủy duyệt
+const handleHuyDuyetPhieu = async (id) => {
+  const lyDoHuyDuyet = window.prompt(
+    '⚠️ HỦY DUYỆT PHIẾU NHẬP\n\n' +
+    'Hành động này sẽ:\n' +
+    '• Hoàn nguyên tồn kho\n' +
+    '• Xóa/giảm lô hàng đã tạo\n' +
+    '• Chuyển phiếu về trạng thái "Chờ duyệt"\n\n' +
+    'Nhập lý do hủy duyệt:'
+  );
+
+  if (lyDoHuyDuyet === null) return;
+
+  if (!lyDoHuyDuyet.trim()) {
+    toast.error('Lý do hủy duyệt không được để trống');
+    return;
+  }
+
+  try {
+    await api.patch(`/api/phieu-nhap/${id}/huy-duyet?lyDoHuyDuyet=${encodeURIComponent(lyDoHuyDuyet)}`);
+    toast.success('✅ Hủy duyệt thành công! Tồn kho đã được hoàn nguyên.');
+    fetchPhieuNhapList();
+  } catch (error) {
+    const message = error.response?.data?.message || 'Lỗi khi hủy duyệt phiếu nhập';
+    toast.error(message);
+  }
+};
+
   const handleDeletePhieu = async (id, trangThai) => {
     if (trangThai === 'DA_DUYET') {
       toast.error('Không thể xóa phiếu đã duyệt');
@@ -190,162 +219,192 @@ const NhapKho = () => {
   };
 
   const columns = [
-    { title: 'Mã Phiếu', dataIndex: 'maPhieuNhap' },
-    { title: 'Kho', dataIndex: 'tenKho' },
-    { title: 'NCC', dataIndex: 'tenNhaCungCap', render: (value) => value || '-' },
-    { title: 'Ngày Nhập', dataIndex: 'ngayNhap', render: formatDate },
-    {
-      title: 'Tổng Giá Trị',
-      dataIndex: 'tongThanhToan',
-      align: 'right',
-      render: (value) => new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND'
-      }).format(value || 0)
-    },
-    {
-      title: 'Trạng Thái',
-      dataIndex: 'trangThai',
-      render: (value) => {
-        const statusConfig = {
-          NHAP: { label: 'Đang nhập', bg: '#e3f2fd', color: '#1976d2' },
-          CHO_DUYET: { label: 'Chờ duyệt', bg: '#fef5e7', color: '#f39c12' },
-          DA_DUYET: { label: 'Đã duyệt', bg: '#d5f4e6', color: '#27ae60' },
-          HUY: { label: 'Đã hủy', bg: '#fadbd8', color: '#e74c3c' }
-        };
-        const config = statusConfig[value] || statusConfig.NHAP;
-        return (
-          <span style={{
-            padding: '0.375rem 0.75rem',
-            borderRadius: '9999px',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            backgroundColor: config.bg,
-            color: config.color
-          }}>
-            {config.label}
-          </span>
-        );
-      }
-    },
-    {
-      title: 'Thao Tác',
-      dataIndex: 'actions',
-      align: 'center',
-      render: (_, record) => (
-        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+  { title: 'Mã Phiếu', dataIndex: 'maPhieuNhap' },
+  { title: 'Kho', dataIndex: 'tenKho' },
+  { title: 'NCC', dataIndex: 'tenNhaCungCap', render: (value) => value || '-' },
+  
+  // ✅ ĐÃ SỬA
+  { 
+    title: 'Thời gian tạo', 
+    dataIndex: 'createdAt', 
+    render: formatDateTime 
+  },
+  
+  {
+    title: 'Tổng Giá Trị',
+    dataIndex: 'tongThanhToan',
+    align: 'right',
+    render: (value) => new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(value || 0)
+  },
+  {
+    title: 'Trạng Thái',
+    dataIndex: 'trangThai',
+    render: (value) => {
+      const statusConfig = {
+        NHAP: { label: 'Đang nhập', bg: '#e3f2fd', color: '#1976d2' },
+        CHO_DUYET: { label: 'Chờ duyệt', bg: '#fef5e7', color: '#f39c12' },
+        DA_DUYET: { label: 'Đã duyệt', bg: '#d5f4e6', color: '#27ae60' },
+        HUY: { label: 'Đã hủy', bg: '#fadbd8', color: '#e74c3c' }
+      };
+      const config = statusConfig[value] || statusConfig.NHAP;
+      return (
+        <span style={{
+          padding: '0.375rem 0.75rem',
+          borderRadius: '9999px',
+          fontSize: '0.875rem',
+          fontWeight: '500',
+          backgroundColor: config.bg,
+          color: config.color
+        }}>
+          {config.label}
+        </span>
+      );
+    }
+  },
+  {
+  title: 'Thao Tác',
+  dataIndex: 'actions',
+  align: 'center',
+  render: (_, record) => (
+    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+      <button
+        onClick={() => handleViewDetail(record.id)}
+        style={{
+          padding: '0.5rem 0.75rem',
+          backgroundColor: '#3498db',
+          color: 'white',
+          border: 'none',
+          borderRadius: '0.5rem',
+          cursor: 'pointer',
+          fontSize: '0.875rem'
+        }}
+        title="Xem chi tiết"
+      >
+        Xem
+      </button>
+
+      {(record.trangThai === 'NHAP' || record.trangThai === 'CHO_DUYET') && (
+        <>
           <button
-            onClick={() => handleViewDetail(record.id)}
+            onClick={() => handleEditPhieu(record.id)}
             style={{
               padding: '0.5rem 0.75rem',
-              backgroundColor: '#3498db',
+              backgroundColor: '#f39c12',
               color: 'white',
               border: 'none',
               borderRadius: '0.5rem',
               cursor: 'pointer',
               fontSize: '0.875rem'
             }}
-            title="Xem chi tiết"
+            title="Chỉnh sửa"
           >
-            Xem
+            Sửa
           </button>
 
-          {(record.trangThai === 'NHAP' || record.trangThai === 'CHO_DUYET') && (
-            <>
-              <button
-                onClick={() => handleEditPhieu(record.id)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  backgroundColor: '#f39c12',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem'
-                }}
-                title="Chỉnh sửa"
-              >
-                Sửa
-              </button>
+          <button
+            onClick={() => handleDuyetPhieu(record.id)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              backgroundColor: '#27ae60',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.875rem'
+            }}
+            title="Duyệt phiếu"
+          >
+            Duyệt
+          </button>
 
-              <button
-                onClick={() => handleDuyetPhieu(record.id)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  backgroundColor: '#27ae60',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  fontSize: '0.875rem'
-                }}
-                title="Duyệt phiếu"
-              >
-                Duyệt
-              </button>
+          <button
+            onClick={() => handleHuyPhieu(record.id)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              backgroundColor: '#e67e22',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+            title="Hủy phiếu"
+          >
+            Hủy
+          </button>
 
-              <button
-                onClick={() => handleHuyPhieu(record.id)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  backgroundColor: '#e67e22',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem'
-                }}
-                title="Hủy phiếu"
-              >
-                Hủy
-              </button>
+          <button
+            onClick={() => handleDeletePhieu(record.id, record.trangThai)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              backgroundColor: '#e74c3c',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+            title="Xóa phiếu"
+          >
+            Xóa
+          </button>
+        </>
+      )}
 
-              <button
-                onClick={() => handleDeletePhieu(record.id, record.trangThai)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  backgroundColor: '#e74c3c',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem'
-                }}
-                title="Xóa phiếu"
-              >
-                Xóa
-              </button>
-            </>
-          )}
+      {record.trangThai === 'HUY' && (
+        <button
+          onClick={() => handleDeletePhieu(record.id, record.trangThai)}
+          style={{
+            padding: '0.5rem 0.75rem',
+            backgroundColor: '#e74c3c',
+            color: 'white',
+            border: 'none',
+            borderRadius: '0.5rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem'
+          }}
+          title="Xóa phiếu"
+        >
+          Xóa
+        </button>
+      )}
 
-          {record.trangThai === 'HUY' && (
+      {/* ✅ THÊM: Nút HỦY DUYỆT cho ADMIN */}
+      {record.trangThai === 'DA_DUYET' && (
+        <>
+          <span style={{ color: '#7f8c8d', fontStyle: 'italic', fontSize: '0.875rem' }}>
+            Đã duyệt
+          </span>
+          
+          {/* Chỉ hiển thị nếu user là ADMIN */}
+          {localStorage.getItem('userRole') === 'ADMIN' && (
             <button
-              onClick={() => handleDeletePhieu(record.id, record.trangThai)}
+              onClick={() => handleHuyDuyetPhieu(record.id)}
               style={{
                 padding: '0.5rem 0.75rem',
-                backgroundColor: '#e74c3c',
+                backgroundColor: '#e67e22',
                 color: 'white',
                 border: 'none',
                 borderRadius: '0.5rem',
                 cursor: 'pointer',
-                fontSize: '0.875rem'
+                fontSize: '0.875rem',
+                fontWeight: '600'
               }}
-              title="Xóa phiếu"
+              title="Hủy duyệt (chỉ ADMIN)"
             >
-              Xóa
+              ⚠️ Hủy duyệt
             </button>
           )}
-
-          {record.trangThai === 'DA_DUYET' && (
-            <span style={{ color: '#7f8c8d', fontStyle: 'italic', fontSize: '0.875rem' }}>
-              Đã duyệt
-            </span>
-          )}
-        </div>
-      )
-    }
-  ];
+        </>
+      )}
+    </div>
+  )
+}
+];
 
   const totalValue = phieuNhapList.reduce((sum, p) => sum + (p.tongThanhToan || 0), 0);
   const pendingCount = phieuNhapList.filter(p => p.trangThai === 'CHO_DUYET' || p.trangThai === 'NHAP').length;
@@ -589,58 +648,69 @@ const NhapKho = () => {
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 <div style={{ backgroundColor: '#f8f9fa', padding: '1.25rem', borderRadius: '0.5rem' }}>
-                  <h4 style={{ color: '#2c3e50', marginBottom: '1rem', fontSize: '1rem', fontWeight: '600' }}>
-                    Thông tin phiếu nhập
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                      <span style={{ color: '#7f8c8d' }}>Mã phiếu:</span>
-                      <span style={{ fontWeight: '600', color: '#2c3e50' }}>{viewingPhieu.maPhieuNhap}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                      <span style={{ color: '#7f8c8d' }}>Kho:</span>
-                      <span style={{ fontWeight: '600', color: '#2c3e50' }}>{viewingPhieu.tenKho}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                      <span style={{ color: '#7f8c8d' }}>NCC:</span>
-                      <span style={{ fontWeight: '600', color: '#2c3e50' }}>{viewingPhieu.tenNhaCungCap || 'Không có'}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                      <span style={{ color: '#7f8c8d' }}>Loại nhập:</span>
-                      <span style={{ fontWeight: '600', color: '#2c3e50' }}>{viewingPhieu.loaiNhap}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                      <span style={{ color: '#7f8c8d' }}>Ngày nhập:</span>
-                      <span style={{ fontWeight: '600', color: '#2c3e50' }}>
-                        {formatDateTime(viewingPhieu.ngayNhap)}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
-                      <span style={{ color: '#7f8c8d' }}>Trạng thái:</span>
-                      {(() => {
-                        const statusConfig = {
-                          NHAP: { label: 'Đang nhập', bg: '#e3f2fd', color: '#1976d2' },
-                          CHO_DUYET: { label: 'Chờ duyệt', bg: '#fef5e7', color: '#f39c12' },
-                          DA_DUYET: { label: 'Đã duyệt', bg: '#d5f4e6', color: '#27ae60' },
-                          HUY: { label: 'Đã hủy', bg: '#fadbd8', color: '#e74c3c' }
-                        };
-                        const config = statusConfig[viewingPhieu.trangThai] || statusConfig.NHAP;
-                        return (
-                          <span style={{
-                            padding: '0.25rem 0.75rem',
-                            borderRadius: '9999px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600',
-                            backgroundColor: config.bg,
-                            color: config.color
-                          }}>
-                            {config.label}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
+  <h4 style={{ color: '#2c3e50', marginBottom: '1rem', fontSize: '1rem', fontWeight: '600' }}>
+    Thông tin phiếu nhập
+  </h4>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+      <span style={{ color: '#7f8c8d' }}>Mã phiếu:</span>
+      <span style={{ fontWeight: '600', color: '#2c3e50' }}>{viewingPhieu.maPhieuNhap}</span>
+    </div>
+    
+    {/* ✅ THỜI GIAN TẠO (CÓ GIỜ) */}
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+      <span style={{ color: '#7f8c8d' }}>Thời gian tạo:</span>
+      <span style={{ fontWeight: '600', color: '#2c3e50' }}>
+        {formatDateTime(viewingPhieu.createdAt)}
+      </span>
+    </div>
+    
+    {/* ✅ NGÀY NHẬP DỰ KIẾN (CHỈ NGÀY) */}
+    {/* <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+      <span style={{ color: '#7f8c8d' }}>Ngày nhập dự kiến:</span>
+      <span style={{ fontWeight: '600', color: '#2c3e50' }}>
+        {formatDate(viewingPhieu.ngayNhap)}
+      </span>
+    </div> */}
+    
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+      <span style={{ color: '#7f8c8d' }}>Kho:</span>
+      <span style={{ fontWeight: '600', color: '#2c3e50' }}>{viewingPhieu.tenKho}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+      <span style={{ color: '#7f8c8d' }}>NCC:</span>
+      <span style={{ fontWeight: '600', color: '#2c3e50' }}>{viewingPhieu.tenNhaCungCap || 'Không có'}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+      <span style={{ color: '#7f8c8d' }}>Loại nhập:</span>
+      <span style={{ fontWeight: '600', color: '#2c3e50' }}>{viewingPhieu.loaiNhap}</span>
+    </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+      <span style={{ color: '#7f8c8d' }}>Trạng thái:</span>
+      {(() => {
+        const statusConfig = {
+          NHAP: { label: 'Đang nhập', bg: '#e3f2fd', color: '#1976d2' },
+          CHO_DUYET: { label: 'Chờ duyệt', bg: '#fef5e7', color: '#f39c12' },
+          DA_DUYET: { label: 'Đã duyệt', bg: '#d5f4e6', color: '#27ae60' },
+          HUY: { label: 'Đã hủy', bg: '#fadbd8', color: '#e74c3c' }
+        };
+        const config = statusConfig[viewingPhieu.trangThai] || statusConfig.NHAP;
+        return (
+          <span style={{
+            padding: '0.25rem 0.75rem',
+            borderRadius: '9999px',
+            fontSize: '0.75rem',
+            fontWeight: '600',
+            backgroundColor: config.bg,
+            color: config.color
+          }}>
+            {config.label}
+          </span>
+        );
+      })()}
+    </div>
+  </div>
+</div>
 
                 <div style={{ backgroundColor: '#f8f9fa', padding: '1.25rem', borderRadius: '0.5rem' }}>
                   <h4 style={{ color: '#2c3e50', marginBottom: '1rem', fontSize: '1rem', fontWeight: '600' }}>

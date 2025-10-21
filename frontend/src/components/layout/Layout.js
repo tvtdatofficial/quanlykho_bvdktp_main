@@ -17,15 +17,15 @@ const Layout = ({ children }) => {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const menuItems = [
-  { name: 'Trang chủ', path: '/', icon: '🏠' },
-  { name: 'Quản lý kho', path: '/quan-ly-kho', icon: '🏭' },
-  { name: 'Hàng hóa', path: '/hang-hoa', icon: '📦' },
-  { name: 'Vị trí kho', path: '/vi-tri-kho', icon: '📍' },
-  { name: 'Lô hàng', path: '/lo-hang', icon: '🏷️' },
-  { name: 'Nhập kho', path: '/nhap-kho', icon: '📥' },
-  { name: 'Xuất kho', path: '/xuat-kho', icon: '📤' },
-  { name: 'Báo cáo', path: '/bao-cao', icon: '📊' },
-];
+    { name: 'Trang chủ', path: '/', icon: '🏠' },
+    { name: 'Quản lý kho', path: '/quan-ly-kho', icon: '🏭' },
+    { name: 'Hàng hóa', path: '/hang-hoa', icon: '📦' },
+    { name: 'Vị trí kho', path: '/vi-tri-kho', icon: '📍' },
+    { name: 'Lô hàng', path: '/lo-hang', icon: '🏷️' },
+    { name: 'Nhập kho', path: '/nhap-kho', icon: '📥' },
+    { name: 'Xuất kho', path: '/xuat-kho', icon: '📤' },
+    { name: 'Báo cáo', path: '/bao-cao', icon: '📊' },
+  ];
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
@@ -112,10 +112,21 @@ const Layout = ({ children }) => {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#2c3e50' }}>
-            Hệ thống quản lý kho bệnh viện Đa khoa Tân Phú
-          </h1>
-          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <img
+              src="/Logo_BVDKTP.png"
+              alt="Logo Bệnh viện"
+              style={{
+                height: '50px',
+                width: '50px',
+                objectFit: 'contain'
+              }}
+            />
+            <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#2c3e50' }}>
+              Quản lý tài sản Bệnh Viện Đa Khoa Tân Phú
+            </h1>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>

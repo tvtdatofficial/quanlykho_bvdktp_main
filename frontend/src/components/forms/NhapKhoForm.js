@@ -53,19 +53,19 @@ const NhapKhoForm = ({ initialData, onSubmit, onCancel }) => {
 
 
   useEffect(() => {
-  if (hangHoaList.length > 0) {
-    const details = {};
-    hangHoaList.forEach(hh => {
-      details[hh.id] = {
-        coQuanLyLo: hh.coQuanLyLo,
-        coHanSuDung: hh.coHanSuDung,
-        tenHangHoa: hh.tenHangHoa,
-        maHangHoa: hh.maHangHoa
-      };
-    });
-    setHangHoaDetails(details);
-  }
-}, [hangHoaList]);
+    if (hangHoaList.length > 0) {
+      const details = {};
+      hangHoaList.forEach(hh => {
+        details[hh.id] = {
+          coQuanLyLo: hh.coQuanLyLo,
+          coHanSuDung: hh.coHanSuDung,
+          tenHangHoa: hh.tenHangHoa,
+          maHangHoa: hh.maHangHoa
+        };
+      });
+      setHangHoaDetails(details);
+    }
+  }, [hangHoaList]);
 
   const fetchSelectData = async () => {
     setLoadingData(true);
@@ -147,93 +147,93 @@ const NhapKhoForm = ({ initialData, onSubmit, onCancel }) => {
   };
 
   // SỬA HÀM validateForm
-const validateForm = () => {
-  const newErrors = {};
+  const validateForm = () => {
+    const newErrors = {};
 
-  if (!formData.khoId) {
-    newErrors.khoId = 'Vui lòng chọn kho';
-    toast.error('⚠️ Vui lòng chọn kho');
-    return false;
-  }
-  
-  if (!formData.ngayNhap) {
-    newErrors.ngayNhap = 'Vui lòng chọn ngày nhập';
-    toast.error('⚠️ Vui lòng chọn ngày nhập');
-    return false;
-  }
-  
-  if (formData.chiTiet.length === 0) {
-    newErrors.chiTiet = 'Vui lòng thêm ít nhất một hàng hóa';
-    toast.error('⚠️ Vui lòng thêm ít nhất một hàng hóa');
-    return false;
-  }
+    if (!formData.khoId) {
+      newErrors.khoId = 'Vui lòng chọn kho';
+      toast.error('⚠️ Vui lòng chọn kho');
+      return false;
+    }
 
-  // Validate từng dòng chi tiết
-  for (let i = 0; i < formData.chiTiet.length; i++) {
-    const item = formData.chiTiet[i];
-    const lineNumber = i + 1;
-    
-    // Kiểm tra trường bắt buộc
-    if (!item.hangHoaId) {
-      toast.error(`❌ Dòng ${lineNumber}: Chưa chọn hàng hóa`);
+    if (!formData.ngayNhap) {
+      newErrors.ngayNhap = 'Vui lòng chọn ngày nhập';
+      toast.error('⚠️ Vui lòng chọn ngày nhập');
       return false;
     }
-    
-    if (!item.viTriKhoId) {
-      toast.error(`❌ Dòng ${lineNumber}: Chưa chọn vị trí kho`);
+
+    if (formData.chiTiet.length === 0) {
+      newErrors.chiTiet = 'Vui lòng thêm ít nhất một hàng hóa';
+      toast.error('⚠️ Vui lòng thêm ít nhất một hàng hóa');
       return false;
     }
-    
-    if (!item.soLuong || item.soLuong <= 0) {
-      toast.error(`❌ Dòng ${lineNumber}: Số lượng phải lớn hơn 0`);
-      return false;
-    }
-    
-    if (!item.donGia || item.donGia < 0) {
-      toast.error(`❌ Dòng ${lineNumber}: Đơn giá không hợp lệ`);
-      return false;
-    }
-    
-    // Kiểm tra yêu cầu lô hàng
-    const hangHoaInfo = hangHoaDetails[item.hangHoaId];
-    
-    if (hangHoaInfo && hangHoaInfo.coQuanLyLo) {
-      if (!item.soLo || !item.soLo.trim()) {
-        toast.error(
-          `❌ Dòng ${lineNumber} - ${hangHoaInfo.tenHangHoa}: YÊU CẦU nhập số lô`,
-          { autoClose: 5000 }
+
+    // Validate từng dòng chi tiết
+    for (let i = 0; i < formData.chiTiet.length; i++) {
+      const item = formData.chiTiet[i];
+      const lineNumber = i + 1;
+
+      // Kiểm tra trường bắt buộc
+      if (!item.hangHoaId) {
+        toast.error(`❌ Dòng ${lineNumber}: Chưa chọn hàng hóa`);
+        return false;
+      }
+
+      if (!item.viTriKhoId) {
+        toast.error(`❌ Dòng ${lineNumber}: Chưa chọn vị trí kho`);
+        return false;
+      }
+
+      if (!item.soLuong || item.soLuong <= 0) {
+        toast.error(`❌ Dòng ${lineNumber}: Số lượng phải lớn hơn 0`);
+        return false;
+      }
+
+      if (!item.donGia || item.donGia < 0) {
+        toast.error(`❌ Dòng ${lineNumber}: Đơn giá không hợp lệ`);
+        return false;
+      }
+
+      // Kiểm tra yêu cầu lô hàng
+      const hangHoaInfo = hangHoaDetails[item.hangHoaId];
+
+      if (hangHoaInfo && hangHoaInfo.coQuanLyLo) {
+        if (!item.soLo || !item.soLo.trim()) {
+          toast.error(
+            `❌ Dòng ${lineNumber} - ${hangHoaInfo.tenHangHoa}: YÊU CẦU nhập số lô`,
+            { autoClose: 5000 }
+          );
+          return false;
+        }
+
+        if (hangHoaInfo.coHanSuDung && !item.hanSuDung) {
+          toast.error(
+            `❌ Dòng ${lineNumber} - ${hangHoaInfo.tenHangHoa}: YÊU CẦU nhập hạn sử dụng`,
+            { autoClose: 5000 }
+          );
+          return false;
+        }
+      }
+
+      // Validate ngày tháng
+      if (item.ngaySanXuat && item.hanSuDung) {
+        if (new Date(item.hanSuDung) < new Date(item.ngaySanXuat)) {
+          toast.error(`❌ Dòng ${lineNumber}: Hạn sử dụng phải sau ngày sản xuất`);
+          return false;
+        }
+      }
+
+      if (item.hanSuDung && new Date(item.hanSuDung) < new Date()) {
+        toast.warning(
+          `⚠️ Dòng ${lineNumber}: Hàng hóa đã HẾT HẠN. Bạn có chắc muốn nhập?`,
+          { autoClose: 8000 }
         );
-        return false;
-      }
-      
-      if (hangHoaInfo.coHanSuDung && !item.hanSuDung) {
-        toast.error(
-          `❌ Dòng ${lineNumber} - ${hangHoaInfo.tenHangHoa}: YÊU CẦU nhập hạn sử dụng`,
-          { autoClose: 5000 }
-        );
-        return false;
       }
     }
-    
-    // Validate ngày tháng
-    if (item.ngaySanXuat && item.hanSuDung) {
-      if (new Date(item.hanSuDung) < new Date(item.ngaySanXuat)) {
-        toast.error(`❌ Dòng ${lineNumber}: Hạn sử dụng phải sau ngày sản xuất`);
-        return false;
-      }
-    }
-    
-    if (item.hanSuDung && new Date(item.hanSuDung) < new Date()) {
-      toast.warning(
-        `⚠️ Dòng ${lineNumber}: Hàng hóa đã HẾT HẠN. Bạn có chắc muốn nhập?`,
-        { autoClose: 8000 }
-      );
-    }
-  }
 
-  setErrors(newErrors);
-  return true;
-};
+    setErrors(newErrors);
+    return true;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -506,257 +506,257 @@ const validateForm = () => {
                 </tr>
               </thead>
               <tbody>
-  {formData.chiTiet.map((item, index) => {
-    const hangHoaInfo = hangHoaDetails[item.hangHoaId];
-    const requiresLot = hangHoaInfo?.coQuanLyLo;
-    const requiresExpiry = hangHoaInfo?.coHanSuDung;
-    
-    return (
-      <tr 
-        key={index} 
-        style={{ 
-          backgroundColor: 'white',
-          borderLeft: requiresLot ? '4px solid #f39c12' : 'none'
-        }}
-      >
-        {/* Cell Hàng hóa - CÓ ẢNH */}
-<td style={{ padding: '0.5rem', border: '1px solid #dee2e6', minWidth: '250px' }}>
-  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-    {/* ✅ THÊM: Hình ảnh hàng hóa */}
-    {item.hangHoaId && (() => {
-      const selectedHH = hangHoaList.find(h => h.id === parseInt(item.hangHoaId));
-      return selectedHH?.hinhAnhUrl ? (
-        <img
-          src={getImageUrl(selectedHH.hinhAnhUrl)}
-          alt={selectedHH.tenHangHoa}
-          style={{
-            width: '50px',
-            height: '50px',
-            objectFit: 'cover',
-            borderRadius: '6px',
-            border: '2px solid #e0e0e0',
-            flexShrink: 0
-          }}
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI4IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Ti9BPC90ZXh0Pjwvc3ZnPg==';
-          }}
-        />
-      ) : (
-        <div style={{
-          width: '50px',
-          height: '50px',
-          backgroundColor: '#f5f5f5',
-          borderRadius: '6px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '1.2rem',
-          flexShrink: 0
-        }}>
-          📦
-        </div>
-      );
-    })()}
+                {formData.chiTiet.map((item, index) => {
+                  const hangHoaInfo = hangHoaDetails[item.hangHoaId];
+                  const requiresLot = hangHoaInfo?.coQuanLyLo;
+                  const requiresExpiry = hangHoaInfo?.coHanSuDung;
 
-    {/* Select hàng hóa */}
-    <div style={{ flex: 1 }}>
-      <select
-        value={item.hangHoaId}
-        onChange={(e) => updateChiTiet(index, 'hangHoaId', e.target.value)}
-        style={{ 
-          width: '100%', 
-          padding: '0.5rem', 
-          border: !item.hangHoaId ? '2px solid #e74c3c' : '1px solid #ddd',
-          borderRadius: '0.375rem', 
-          fontSize: '0.875rem',
-          backgroundColor: !item.hangHoaId ? '#fff5f5' : 'white'
-        }}
-      >
-        <option value="">-- Chọn hàng hóa --</option>
-        {hangHoaList.map(hh => (
-          <option key={hh.id} value={hh.id}>
-            {hh.tenHangHoa}
-            {hh.coQuanLyLo && ' 📦'}
-            {hh.coHanSuDung && ' 📅'}
-          </option>
-        ))}
-      </select>
-      {requiresLot && (
-        <div style={{ 
-          fontSize: '0.7rem', 
-          color: '#f39c12', 
-          marginTop: '0.25rem',
-          fontWeight: '600',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.25rem'
-        }}>
-          <span>⚠️</span>
-          <span>YÊU CẦU quản lý lô</span>
-        </div>
-      )}
-    </div>
-  </div>
-</td>
-        
-        {/* Cell Vị trí kho */}
-        <td style={{ padding: '0.5rem', border: '1px solid #dee2e6', minWidth: '180px' }}>
-          <select
-            value={item.viTriKhoId}
-            onChange={(e) => updateChiTiet(index, 'viTriKhoId', e.target.value)}
-            style={{ 
-              width: '100%', 
-              padding: '0.5rem', 
-              border: !item.viTriKhoId ? '2px solid #e74c3c' : '1px solid #ddd',
-              borderRadius: '0.375rem', 
-              fontSize: '0.875rem',
-              backgroundColor: !item.viTriKhoId ? '#fff5f5' : 'white'
-            }}
-            disabled={viTriKhoList.length === 0}
-          >
-            <option value="">-- Chọn vị trí --</option>
-            {viTriKhoList.map(vt => (
-              <option key={vt.id} value={vt.id}>
-                {vt.tenViTri}
-                {vt.sucChuaToiDa && ` (${vt.soLuongHienTai || 0}/${vt.sucChuaToiDa})`}
-              </option>
-            ))}
-          </select>
-        </td>
-        
-        {/* Cell Số lượng */}
-        <td style={{ padding: '0.5rem', border: '1px solid #dee2e6' }}>
-          <input
-            type="number"
-            value={item.soLuong}
-            onChange={(e) => updateChiTiet(index, 'soLuong', e.target.value)}
-            style={{ 
-              width: '80px', 
-              padding: '0.5rem', 
-              border: !item.soLuong || item.soLuong <= 0 ? '2px solid #e74c3c' : '1px solid #ddd',
-              borderRadius: '0.375rem', 
-              textAlign: 'center', 
-              fontSize: '0.875rem',
-              backgroundColor: !item.soLuong || item.soLuong <= 0 ? '#fff5f5' : 'white'
-            }}
-            min="1"
-          />
-        </td>
-        
-        {/* Cell Đơn giá */}
-        <td style={{ padding: '0.5rem', border: '1px solid #dee2e6' }}>
-          <input
-            type="number"
-            value={item.donGia}
-            onChange={(e) => updateChiTiet(index, 'donGia', e.target.value)}
-            style={{ 
-              width: '120px', 
-              padding: '0.5rem', 
-              border: !item.donGia || item.donGia < 0 ? '2px solid #e74c3c' : '1px solid #ddd',
-              borderRadius: '0.375rem', 
-              textAlign: 'right', 
-              fontSize: '0.875rem',
-              backgroundColor: !item.donGia || item.donGia < 0 ? '#fff5f5' : 'white'
-            }}
-            min="0"
-            step="1000"
-          />
-        </td>
-        
-        {/* Cell Thành tiền */}
-        <td style={{ 
-          padding: '0.5rem', 
-          border: '1px solid #dee2e6', 
-          textAlign: 'right', 
-          fontWeight: '600', 
-          color: '#2c3e50', 
-          fontSize: '0.875rem' 
-        }}>
-          {new Intl.NumberFormat('vi-VN').format(item.thanhTien || 0)}₫
-        </td>
-        
-        {/* Cell Hạn sử dụng */}
-        <td style={{ padding: '0.5rem', border: '1px solid #dee2e6' }}>
-          <input
-            type="date"
-            value={item.hanSuDung}
-            onChange={(e) => updateChiTiet(index, 'hanSuDung', e.target.value)}
-            style={{
-              width: '140px',
-              padding: '0.5rem',
-              border: requiresExpiry && !item.hanSuDung ? '2px solid #e74c3c' : '1px solid #ddd',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              backgroundColor: requiresExpiry && !item.hanSuDung ? '#fff5f5' : 'white'
-            }}
-            min={item.ngaySanXuat || new Date().toISOString().split('T')[0]}
-          />
-          {requiresExpiry && !item.hanSuDung && (
-            <div style={{ 
-              fontSize: '0.7rem', 
-              color: '#e74c3c', 
-              marginTop: '0.25rem',
-              fontWeight: '700'
-            }}>
-              ⚠️ BẮT BUỘC
-            </div>
-          )}
-        </td>
-        
-        {/* Cell Số lô */}
-        <td style={{ padding: '0.5rem', border: '1px solid #dee2e6' }}>
-          <input
-            type="text"
-            value={item.soLo}
-            onChange={(e) => updateChiTiet(index, 'soLo', e.target.value)}
-            style={{
-              width: '100px',
-              padding: '0.5rem',
-              border: requiresLot && !item.soLo ? '2px solid #e74c3c' : '1px solid #ddd',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              backgroundColor: requiresLot && !item.soLo ? '#fff5f5' : 'white'
-            }}
-            placeholder={requiresLot ? 'BẮT BUỘC *' : 'Số lô'}
-            maxLength={50}
-          />
-          {requiresLot && !item.soLo && (
-            <div style={{ 
-              fontSize: '0.7rem', 
-              color: '#e74c3c', 
-              marginTop: '0.25rem',
-              fontWeight: '700'
-            }}>
-              ⚠️ BẮT BUỘC
-            </div>
-          )}
-        </td>
-        
-        {/* Cell Xóa */}
-        <td style={{ padding: '0.5rem', border: '1px solid #dee2e6', textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={() => removeChiTietRow(index)}
-            style={{
-              backgroundColor: '#e74c3c',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: '600'
-            }}
-            title="Xóa dòng này"
-          >
-            🗑️ Xóa
-          </button>
-        </td>
-      </tr>
-    );
-  })}
-</tbody>
+                  return (
+                    <tr
+                      key={index}
+                      style={{
+                        backgroundColor: 'white',
+                        borderLeft: requiresLot ? '4px solid #f39c12' : 'none'
+                      }}
+                    >
+                      {/* Cell Hàng hóa - CÓ ẢNH */}
+                      <td style={{ padding: '0.5rem', border: '1px solid #dee2e6', minWidth: '250px' }}>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          {/* ✅ THÊM: Hình ảnh hàng hóa */}
+                          {item.hangHoaId && (() => {
+                            const selectedHH = hangHoaList.find(h => h.id === parseInt(item.hangHoaId));
+                            return selectedHH?.hinhAnhUrl ? (
+                              <img
+                                src={getImageUrl(selectedHH.hinhAnhUrl)}
+                                alt={selectedHH.tenHangHoa}
+                                style={{
+                                  width: '50px',
+                                  height: '50px',
+                                  objectFit: 'cover',
+                                  borderRadius: '6px',
+                                  border: '2px solid #e0e0e0',
+                                  flexShrink: 0
+                                }}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI4IiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Ti9BPC90ZXh0Pjwvc3ZnPg==';
+                                }}
+                              />
+                            ) : (
+                              <div style={{
+                                width: '50px',
+                                height: '50px',
+                                backgroundColor: '#f5f5f5',
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '1.2rem',
+                                flexShrink: 0
+                              }}>
+                                📦
+                              </div>
+                            );
+                          })()}
+
+                          {/* Select hàng hóa */}
+                          <div style={{ flex: 1 }}>
+                            <select
+                              value={item.hangHoaId}
+                              onChange={(e) => updateChiTiet(index, 'hangHoaId', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                border: !item.hangHoaId ? '2px solid #e74c3c' : '1px solid #ddd',
+                                borderRadius: '0.375rem',
+                                fontSize: '0.875rem',
+                                backgroundColor: !item.hangHoaId ? '#fff5f5' : 'white'
+                              }}
+                            >
+                              <option value="">-- Chọn hàng hóa --</option>
+                              {hangHoaList.map(hh => (
+                                <option key={hh.id} value={hh.id}>
+                                  {hh.tenHangHoa}
+                                  {hh.coQuanLyLo && ' 📦'}
+                                  {hh.coHanSuDung && ' 📅'}
+                                </option>
+                              ))}
+                            </select>
+                            {requiresLot && (
+                              <div style={{
+                                fontSize: '0.7rem',
+                                color: '#f39c12',
+                                marginTop: '0.25rem',
+                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem'
+                              }}>
+                                <span>⚠️</span>
+                                <span>YÊU CẦU quản lý lô</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Cell Vị trí kho */}
+                      <td style={{ padding: '0.5rem', border: '1px solid #dee2e6', minWidth: '180px' }}>
+                        <select
+                          value={item.viTriKhoId}
+                          onChange={(e) => updateChiTiet(index, 'viTriKhoId', e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '0.5rem',
+                            border: !item.viTriKhoId ? '2px solid #e74c3c' : '1px solid #ddd',
+                            borderRadius: '0.375rem',
+                            fontSize: '0.875rem',
+                            backgroundColor: !item.viTriKhoId ? '#fff5f5' : 'white'
+                          }}
+                          disabled={viTriKhoList.length === 0}
+                        >
+                          <option value="">-- Chọn vị trí --</option>
+                          {viTriKhoList.map(vt => (
+                            <option key={vt.id} value={vt.id}>
+                              {vt.tenViTri}
+                              {vt.sucChuaToiDa && ` (${vt.soLuongHienTai || 0}/${vt.sucChuaToiDa})`}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Cell Số lượng */}
+                      <td style={{ padding: '0.5rem', border: '1px solid #dee2e6' }}>
+                        <input
+                          type="number"
+                          value={item.soLuong}
+                          onChange={(e) => updateChiTiet(index, 'soLuong', e.target.value)}
+                          style={{
+                            width: '80px',
+                            padding: '0.5rem',
+                            border: !item.soLuong || item.soLuong <= 0 ? '2px solid #e74c3c' : '1px solid #ddd',
+                            borderRadius: '0.375rem',
+                            textAlign: 'center',
+                            fontSize: '0.875rem',
+                            backgroundColor: !item.soLuong || item.soLuong <= 0 ? '#fff5f5' : 'white'
+                          }}
+                          min="1"
+                        />
+                      </td>
+
+                      {/* Cell Đơn giá */}
+                      <td style={{ padding: '0.5rem', border: '1px solid #dee2e6' }}>
+                        <input
+                          type="number"
+                          value={item.donGia}
+                          onChange={(e) => updateChiTiet(index, 'donGia', e.target.value)}
+                          style={{
+                            width: '120px',
+                            padding: '0.5rem',
+                            border: !item.donGia || item.donGia < 0 ? '2px solid #e74c3c' : '1px solid #ddd',
+                            borderRadius: '0.375rem',
+                            textAlign: 'right',
+                            fontSize: '0.875rem',
+                            backgroundColor: !item.donGia || item.donGia < 0 ? '#fff5f5' : 'white'
+                          }}
+                          min="0"
+                          step="any"
+                        />
+                      </td>
+
+                      {/* Cell Thành tiền */}
+                      <td style={{
+                        padding: '0.5rem',
+                        border: '1px solid #dee2e6',
+                        textAlign: 'right',
+                        fontWeight: '600',
+                        color: '#2c3e50',
+                        fontSize: '0.875rem'
+                      }}>
+                        {new Intl.NumberFormat('vi-VN').format(item.thanhTien || 0)}₫
+                      </td>
+
+                      {/* Cell Hạn sử dụng */}
+                      <td style={{ padding: '0.5rem', border: '1px solid #dee2e6' }}>
+                        <input
+                          type="date"
+                          value={item.hanSuDung}
+                          onChange={(e) => updateChiTiet(index, 'hanSuDung', e.target.value)}
+                          style={{
+                            width: '140px',
+                            padding: '0.5rem',
+                            border: requiresExpiry && !item.hanSuDung ? '2px solid #e74c3c' : '1px solid #ddd',
+                            borderRadius: '0.375rem',
+                            fontSize: '0.875rem',
+                            backgroundColor: requiresExpiry && !item.hanSuDung ? '#fff5f5' : 'white'
+                          }}
+                          min={item.ngaySanXuat || new Date().toISOString().split('T')[0]}
+                        />
+                        {requiresExpiry && !item.hanSuDung && (
+                          <div style={{
+                            fontSize: '0.7rem',
+                            color: '#e74c3c',
+                            marginTop: '0.25rem',
+                            fontWeight: '700'
+                          }}>
+                            ⚠️ BẮT BUỘC
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Cell Số lô */}
+                      <td style={{ padding: '0.5rem', border: '1px solid #dee2e6' }}>
+                        <input
+                          type="text"
+                          value={item.soLo}
+                          onChange={(e) => updateChiTiet(index, 'soLo', e.target.value)}
+                          style={{
+                            width: '100px',
+                            padding: '0.5rem',
+                            border: requiresLot && !item.soLo ? '2px solid #e74c3c' : '1px solid #ddd',
+                            borderRadius: '0.375rem',
+                            fontSize: '0.875rem',
+                            backgroundColor: requiresLot && !item.soLo ? '#fff5f5' : 'white'
+                          }}
+                          placeholder={requiresLot ? 'BẮT BUỘC *' : 'Số lô'}
+                          maxLength={50}
+                        />
+                        {requiresLot && !item.soLo && (
+                          <div style={{
+                            fontSize: '0.7rem',
+                            color: '#e74c3c',
+                            marginTop: '0.25rem',
+                            fontWeight: '700'
+                          }}>
+                            ⚠️ BẮT BUỘC
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Cell Xóa */}
+                      <td style={{ padding: '0.5rem', border: '1px solid #dee2e6', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => removeChiTietRow(index)}
+                          style={{
+                            backgroundColor: '#e74c3c',
+                            color: 'white',
+                            border: 'none',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            fontWeight: '600'
+                          }}
+                          title="Xóa dòng này"
+                        >
+                          🗑️ Xóa
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
             </table>
           </div>
         )}
