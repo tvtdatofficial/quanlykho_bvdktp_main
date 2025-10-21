@@ -77,7 +77,9 @@ public class LichSuTonKho {
         DIEU_CHINH,
         KIEM_KE,
         HUY_HANG,
-        CHUYEN_KHO
+        CHUYEN_KHO,
+        HUY_DUYET_NHAP,    // ✅ THÊM
+        HUY_DUYET_XUAT     // ✅ THÊM
     }
 
     public enum LoaiChungTu {
@@ -85,6 +87,8 @@ public class LichSuTonKho {
         PHIEU_XUAT,
         PHIEU_DIEU_CHINH,
         PHIEU_KIEM_KE,
-        PHIEU_HUY
+        PHIEU_HUY,
+        HUY_DUYET_NHAP,    // ✅ THÊM
+        HUY_DUYET_XUAT     // ✅ THÊM
     }
 }

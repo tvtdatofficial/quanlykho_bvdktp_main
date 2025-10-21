@@ -416,6 +416,145 @@ public class PhieuNhapKhoService {
         return convertToDTOWithDetails(phieuNhapKhoRepository.save(phieuNhap));
     }
 
+
+    /**
+     * ✅ BỔ SUNG: Hủy duyệt phiếu nhập (chỉ ADMIN)
+     * Hoàn nguyên tồn kho, xóa/giảm lô hàng đã tạo
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PhieuNhapKhoDTO huyDuyetPhieuNhap(Long id, String lyDoHuyDuyet) {
+        PhieuNhapKho phieuNhap = phieuNhapKhoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phiếu nhập"));
+
+        // Chỉ cho phép hủy duyệt nếu đã duyệt
+        if (phieuNhap.getTrangThai() != PhieuNhapKho.TrangThaiPhieuNhap.DA_DUYET) {
+            throw new IllegalStateException("Chỉ có thể hủy duyệt phiếu đã duyệt");
+        }
+
+        if (lyDoHuyDuyet == null || lyDoHuyDuyet.trim().isEmpty()) {
+            throw new IllegalArgumentException("Lý do hủy duyệt không được để trống");
+        }
+
+        try {
+            List<ChiTietPhieuNhap> chiTietList = chiTietPhieuNhapRepository.findByPhieuNhapId(id);
+
+            // Hoàn nguyên từng chi tiết
+            for (ChiTietPhieuNhap chiTiet : chiTietList) {
+                rollbackChiTietNhapKho(chiTiet, phieuNhap);
+            }
+
+            // Cập nhật trạng thái phiếu nhập
+            phieuNhap.setTrangThai(PhieuNhapKho.TrangThaiPhieuNhap.CHO_DUYET);
+            phieuNhap.setNguoiDuyet(null);
+            phieuNhap.setNgayDuyet(null);
+            phieuNhap.setGhiChu(
+                    (phieuNhap.getGhiChu() != null ? phieuNhap.getGhiChu() + "\n\n" : "") +
+                            "⚠️ ĐÃ HỦY DUYỆT\n" +
+                            "Lý do: " + lyDoHuyDuyet + "\n" +
+                            "Người thực hiện: " + getCurrentUser().getHoTen() + "\n" +
+                            "Thời gian: " + LocalDateTime.now()
+            );
+            phieuNhapKhoRepository.save(phieuNhap);
+
+            log.info("✅ Successfully rolled back phieu nhap ID: {}", id);
+            return convertToDTOWithDetails(phieuNhap);
+
+        } catch (Exception e) {
+            log.error("❌ Error rolling back phieu nhap ID: {}", id, e);
+            throw new RuntimeException("Lỗi khi hủy duyệt phiếu nhập: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Hoàn nguyên một chi tiết phiếu nhập
+     */
+    private void rollbackChiTietNhapKho(ChiTietPhieuNhap chiTiet, PhieuNhapKho phieuNhap) {
+        HangHoa hangHoa = chiTiet.getHangHoa();
+        Integer soLuongNhap = chiTiet.getSoLuong();
+
+        log.info("🔄 Rolling back chi tiet: HangHoa={}, SoLuong={}",
+                hangHoa.getTenHangHoa(), soLuongNhap);
+
+        // 1. Lấy tồn kho hiện tại
+        Integer tonKhoHienTai = hangHoa.getSoLuongCoTheXuat() != null ?
+                hangHoa.getSoLuongCoTheXuat() : 0;
+
+        if (tonKhoHienTai < soLuongNhap) {
+            throw new IllegalStateException(
+                    "Không thể hủy duyệt: Hàng hóa '" + hangHoa.getTenHangHoa() +
+                            "' đã xuất " + (soLuongNhap - tonKhoHienTai) + ". " +
+                            "Vui lòng nhập lại hoặc hủy các phiếu xuất liên quan."
+            );
+        }
+
+        // 2. Giảm tồn kho
+        hangHoaService.capNhatTonKhoSauXuat(hangHoa.getId(), soLuongNhap);
+
+        // 3. Xử lý lô hàng (nếu có)
+        if (chiTiet.getLoHang() != null) {
+            LoHang loHang = chiTiet.getLoHang();
+
+            // Trừ số lượng từ lô
+            loHang.setSoLuongNhap(loHang.getSoLuongNhap() - soLuongNhap);
+            loHang.setSoLuongHienTai(loHang.getSoLuongHienTai() - soLuongNhap);
+
+            // Nếu lô về 0 → Xóa lô
+            if (loHang.getSoLuongNhap() <= 0) {
+                loHangRepository.delete(loHang);
+                log.info("🗑️ Deleted lo_hang ID={}", loHang.getId());
+            } else {
+                loHangRepository.save(loHang);
+            }
+        }
+
+        // 4. Xóa/Giảm hang_hoa_vi_tri
+        if (chiTiet.getViTriKho() != null) {
+            Long hangHoaId = hangHoa.getId();
+            Long viTriKhoId = chiTiet.getViTriKho().getId();
+            Long loHangId = chiTiet.getLoHang() != null ? chiTiet.getLoHang().getId() : null;
+
+            Optional<HangHoaViTri> viTriOpt = hangHoaViTriRepository
+                    .findByHangHoaIdAndViTriKhoIdAndLoHangId(hangHoaId, viTriKhoId, loHangId);
+
+            if (viTriOpt.isPresent()) {
+                HangHoaViTri viTri = viTriOpt.get();
+                viTri.setSoLuong(viTri.getSoLuong() - soLuongNhap);
+
+                if (viTri.getSoLuong() <= 0) {
+                    hangHoaViTriRepository.delete(viTri);
+                } else {
+                    hangHoaViTriRepository.save(viTri);
+                }
+
+                // Cập nhật trạng thái vị trí kho
+                updateViTriKhoStatus(chiTiet.getViTriKho());
+            }
+        }
+
+        // 5. Ghi lịch sử
+        LichSuTonKho lichSu = LichSuTonKho.builder()
+                .hangHoa(hangHoa)
+                .loHang(chiTiet.getLoHang())
+                .viTriKho(chiTiet.getViTriKho())
+                .loaiBienDong(LichSuTonKho.LoaiBienDong.HUY_DUYET_NHAP)
+                .soLuongTruoc(tonKhoHienTai)
+                .soLuongBienDong(soLuongNhap)
+                .soLuongSau(tonKhoHienTai - soLuongNhap)
+                .donGia(chiTiet.getDonGia())
+                .giaTriBienDong(chiTiet.getThanhTien())
+                .maChungTu(phieuNhap.getMaPhieuNhap())
+                .loaiChungTu(LichSuTonKho.LoaiChungTu.HUY_DUYET_NHAP)
+                .lyDo("Hủy duyệt phiếu nhập " + phieuNhap.getMaPhieuNhap())
+                .nguoiThucHien(getCurrentUser())
+                .build();
+
+        lichSuTonKhoRepository.save(lichSu);
+
+        // 6. Cập nhật trạng thái chi tiết
+        chiTiet.setTrangThai(ChiTietPhieuNhap.TrangThaiChiTiet.CHO_NHAP);
+        chiTietPhieuNhapRepository.save(chiTiet);
+    }
+
     /**
      * Xóa phiếu nhập
      */

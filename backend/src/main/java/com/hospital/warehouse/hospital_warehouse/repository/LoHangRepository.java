@@ -33,6 +33,30 @@ public interface LoHangRepository extends JpaRepository<LoHang, Long>,
     );
 
     /**
+     * ✅ BỔ SUNG MỚI - QUAN TRỌNG!
+     * Tìm lô hàng theo hàng hóa + kho + số lô + hạn sử dụng
+     * Dùng khi duyệt phiếu nhập để tìm/tạo lô theo đúng kho
+     *
+     * @param hangHoaId ID hàng hóa
+     * @param khoId     ID kho (QUAN TRỌNG - tránh nhầm lẫn giữa các kho)
+     * @param soLo      Số lô
+     * @param hanSuDung Hạn sử dụng
+     * @return Optional<LoHang> - lô hàng tìm thấy hoặc empty
+     */
+    Optional<LoHang> findByHangHoaIdAndKhoIdAndSoLoAndHanSuDung(
+            Long hangHoaId,
+            Long khoId,
+            String soLo,
+            LocalDate hanSuDung
+    );
+
+    /**
+     * ✅ BỔ SUNG: Tìm lô theo hàng hóa + kho (không cần số lô)
+     * Dùng để lấy tất cả lô của một hàng hóa trong một kho
+     */
+    List<LoHang> findByHangHoaIdAndKhoId(Long hangHoaId, Long khoId);
+
+    /**
      * Lấy tất cả lô hàng của một hàng hóa
      */
     List<LoHang> findByHangHoaId(Long hangHoaId);
@@ -62,22 +86,45 @@ public interface LoHangRepository extends JpaRepository<LoHang, Long>,
      * 4. ID nhỏ (nhập trước) → ID lớn
      *
      * Chỉ lấy lô:
-     * - Còn hàng (soLuongHienTai > 0)
+     * - Còn hàng (soLuongHienTai > minSoLuong)
+     * - Thuộc kho cụ thể (khoId)
      * - Trạng thái: MOI, DANG_SU_DUNG, GAN_HET_HAN
      * - Loại trừ: HET_HAN, HET_HANG
      */
     @Query("""
-        SELECT l FROM LoHang l 
-        WHERE l.hangHoa.id = :hangHoaId 
-          AND l.soLuongHienTai > 0
-          AND l.trangThai IN ('MOI', 'DANG_SU_DUNG', 'GAN_HET_HAN')
-        ORDER BY 
-          CASE WHEN l.hanSuDung IS NULL THEN 1 ELSE 0 END,
-          l.hanSuDung ASC,
-          l.ngaySanXuat ASC,
-          l.id ASC
-    """)
-    List<LoHang> findAvailableLoHangForXuat(@Param("hangHoaId") Long hangHoaId);
+    SELECT l FROM LoHang l 
+    WHERE l.hangHoa.id = :hangHoaId 
+      AND l.kho.id = :khoId
+      AND l.soLuongHienTai > :minSoLuong
+      AND l.trangThai IN ('MOI', 'DANG_SU_DUNG', 'GAN_HET_HAN')
+    ORDER BY 
+      CASE WHEN l.hanSuDung IS NULL THEN 1 ELSE 0 END,
+      l.hanSuDung ASC,
+      l.ngaySanXuat ASC,
+      l.id ASC
+""")
+    List<LoHang> findAvailableLoHangForXuat(
+            @Param("hangHoaId") Long hangHoaId,
+            @Param("khoId") Long khoId,
+            @Param("minSoLuong") Integer minSoLuong
+    );
+
+    /**
+     * ✅ VARIANT: Tìm lô khả dụng KHÔNG phân biệt kho
+     * Dùng khi cần xem tổng quan tất cả các kho
+     */
+    @Query("""
+    SELECT l FROM LoHang l 
+    WHERE l.hangHoa.id = :hangHoaId 
+      AND l.soLuongHienTai > 0
+      AND l.trangThai IN ('MOI', 'DANG_SU_DUNG', 'GAN_HET_HAN')
+    ORDER BY 
+      CASE WHEN l.hanSuDung IS NULL THEN 1 ELSE 0 END,
+      l.hanSuDung ASC,
+      l.ngaySanXuat ASC,
+      l.id ASC
+""")
+    List<LoHang> findAvailableLoHangForXuatAllKho(@Param("hangHoaId") Long hangHoaId);
 
     // ==================== CẢNH BÁO & BÁO CÁO ====================
 
@@ -137,6 +184,15 @@ public interface LoHangRepository extends JpaRepository<LoHang, Long>,
     Long countByHangHoaId(@Param("hangHoaId") Long hangHoaId);
 
     /**
+     * ✅ BỔ SUNG: Đếm số lô của hàng hóa trong một kho cụ thể
+     */
+    @Query("SELECT COUNT(l) FROM LoHang l WHERE l.hangHoa.id = :hangHoaId AND l.kho.id = :khoId")
+    Long countByHangHoaIdAndKhoId(
+            @Param("hangHoaId") Long hangHoaId,
+            @Param("khoId") Long khoId
+    );
+
+    /**
      * ✅ BỔ SUNG: Tính tổng số lượng tồn kho của một hàng hóa
      * (Tổng từ tất cả các lô)
      */
@@ -146,6 +202,20 @@ public interface LoHangRepository extends JpaRepository<LoHang, Long>,
         WHERE l.hangHoa.id = :hangHoaId
     """)
     Integer sumSoLuongHienTaiByHangHoaId(@Param("hangHoaId") Long hangHoaId);
+
+    /**
+     * ✅ BỔ SUNG: Tính tổng số lượng tồn trong một kho cụ thể
+     */
+    @Query("""
+        SELECT COALESCE(SUM(l.soLuongHienTai), 0) 
+        FROM LoHang l 
+        WHERE l.hangHoa.id = :hangHoaId 
+          AND l.kho.id = :khoId
+    """)
+    Integer sumSoLuongHienTaiByHangHoaIdAndKhoId(
+            @Param("hangHoaId") Long hangHoaId,
+            @Param("khoId") Long khoId
+    );
 
     /**
      * ✅ BỔ SUNG: Lấy giá nhập trung bình của hàng hóa từ các lô còn hàng
@@ -196,6 +266,21 @@ public interface LoHangRepository extends JpaRepository<LoHang, Long>,
     List<Object[]> statisticsByTrangThai();
 
     /**
+     * ✅ BỔ SUNG: Thống kê lô hàng theo kho
+     * Dùng cho báo cáo phân bổ tồn kho
+     */
+    @Query("""
+        SELECT l.kho.id,
+               l.kho.tenKho,
+               COUNT(l), 
+               COALESCE(SUM(l.soLuongHienTai), 0)
+        FROM LoHang l 
+        GROUP BY l.kho.id, l.kho.tenKho
+        ORDER BY l.kho.tenKho
+    """)
+    List<Object[]> statisticsByKho();
+
+    /**
      * ✅ BỔ SUNG: Tìm lô hàng theo nhà cung cấp
      * Dùng để tra cứu lô từ nhà cung cấp cụ thể
      */
@@ -222,11 +307,22 @@ public interface LoHangRepository extends JpaRepository<LoHang, Long>,
     );
 
     /**
-     * ✅ BỔ SUNG: Kiểm tra tồn tại lô hàng
+     * ✅ BỔ SUNG: Kiểm tra tồn tại lô hàng (không phân biệt kho)
      * Dùng để validate trước khi tạo mới
      */
     boolean existsByHangHoaIdAndSoLoAndHanSuDung(
             Long hangHoaId,
+            String soLo,
+            LocalDate hanSuDung
+    );
+
+    /**
+     * ✅ BỔ SUNG: Kiểm tra tồn tại lô hàng (có phân biệt kho)
+     * Dùng để validate chính xác theo kho
+     */
+    boolean existsByHangHoaIdAndKhoIdAndSoLoAndHanSuDung(
+            Long hangHoaId,
+            Long khoId,
             String soLo,
             LocalDate hanSuDung
     );

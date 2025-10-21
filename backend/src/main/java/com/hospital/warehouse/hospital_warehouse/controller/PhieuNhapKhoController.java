@@ -39,8 +39,10 @@ public class PhieuNhapKhoController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate denNgay,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "ngayNhap") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir) {
+
+            // ✅ SỬA ĐÂY: Đổi mặc định từ 'ngayNhap' → 'createdAt'
+            @RequestParam(defaultValue = "createdAt") String sortBy,    // ← ĐỔI DÒNG NÀY
+            @RequestParam(defaultValue = "desc") String sortDir) {      // ← GIỮ NGUYÊN
 
         Sort sort = sortDir.equalsIgnoreCase("desc") ?
                 Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
@@ -135,6 +137,32 @@ public class PhieuNhapKhoController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
+
+    /**
+     * ✅ BỔ SUNG: Hủy duyệt phiếu nhập (chỉ ADMIN)
+     */
+    @PatchMapping("/{id}/huy-duyet")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PhieuNhapKhoDTO>> huyDuyetPhieuNhap(
+            @PathVariable Long id,
+            @RequestParam String lyDoHuyDuyet) {
+        try {
+            PhieuNhapKhoDTO result = phieuNhapKhoService.huyDuyetPhieuNhap(id, lyDoHuyDuyet);
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Hủy duyệt phiếu nhập thành công. Tồn kho đã được hoàn nguyên.",
+                    result
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (RuntimeException e) {
+            log.error("Error rolling back phieu nhap", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")

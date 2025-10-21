@@ -389,14 +389,17 @@ public class LoHangService {
     @Transactional
     public LoHang findOrCreateLoHang(ChiTietPhieuNhap chiTiet, PhieuNhapKho phieuNhap) {
         HangHoa hangHoa = chiTiet.getHangHoa();
+        Kho kho = phieuNhap.getKho();          // ✅ LẤY OBJECT KHO (không phải ID)
+        Long khoId = kho.getId();              // ✅ LẤY ID CHO QUERY
 
-        log.info("🔍 Finding/Creating lo hang for HangHoa={}, SoLo={}, HSD={}",
-                hangHoa.getTenHangHoa(), chiTiet.getSoLo(), chiTiet.getHanSuDung());
+        log.info("🔍 Finding/Creating lo hang for HangHoa={}, KhoId={}, SoLo={}, HSD={}",
+                hangHoa.getTenHangHoa(), khoId, chiTiet.getSoLo(), chiTiet.getHanSuDung());
 
-        // BƯỚC 1: Tìm lô đã tồn tại (theo hangHoaId + soLo + hanSuDung)
+        // BƯỚC 1: Tìm lô đã tồn tại (theo hangHoaId + khoId + soLo + hanSuDung)
         Optional<LoHang> existingLo = loHangRepository
-                .findByHangHoaIdAndSoLoAndHanSuDung(
+                .findByHangHoaIdAndKhoIdAndSoLoAndHanSuDung(
                         hangHoa.getId(),
+                        khoId,                    // ✅ DÙNG ID CHO QUERY
                         chiTiet.getSoLo(),
                         chiTiet.getHanSuDung()
                 );
@@ -410,7 +413,6 @@ public class LoHangService {
             int tongSoLuong = soLuongCu + soLuongMoi;
 
             // Tính giá nhập trung bình theo công thức WAVG
-            // WAVG = (Giá cũ × Số lượng cũ + Giá mới × Số lượng mới) / Tổng số lượng
             BigDecimal giaCu = lo.getGiaNhap();
             BigDecimal giaMoi = chiTiet.getDonGia();
 
@@ -438,8 +440,9 @@ public class LoHangService {
             return saved;
 
         } else {
-            // ✅ TẠO LÔ MỚI
+            // ✅ TẠO LÔ MỚI - DÙNG .kho() THAY VÌ .khoId()
             LoHang loMoi = LoHang.builder()
+                    .kho(kho)                              // ✅ SET OBJECT KHO (không phải ID)
                     .hangHoa(hangHoa)
                     .soLo(chiTiet.getSoLo())
                     .ngaySanXuat(chiTiet.getNgaySanXuat())
@@ -454,8 +457,8 @@ public class LoHangService {
 
             LoHang saved = loHangRepository.save(loMoi);
 
-            log.info("✅ Created new lo_hang ID={}: SoLo={}, HSD={}, Qty={}, Price={}",
-                    saved.getId(), saved.getSoLo(), saved.getHanSuDung(),
+            log.info("✅ Created new lo_hang ID={}: KhoId={}, SoLo={}, HSD={}, Qty={}, Price={}",
+                    saved.getId(), khoId, saved.getSoLo(), saved.getHanSuDung(),
                     saved.getSoLuongNhap(), saved.getGiaNhap());
 
             return saved;
@@ -469,23 +472,23 @@ public class LoHangService {
      * Logic:
      * 1. Gọi repository lấy danh sách lô có thể xuất (đã sắp xếp FIFO)
      * 2. Return danh sách để service xuất kho xử lý tiếp
-     *
-     * Nguyên tắc FIFO (First In First Out):
-     * - Ưu tiên lô có hạn sử dụng sớm nhất
-     * - Nếu cùng HSD → ưu tiên lô sản xuất sớm
-     * - Nếu cùng ngày SX → ưu tiên lô nhập kho sớm (ID nhỏ)
+
      */
     @Transactional(readOnly = true)
-    public List<LoHang> chonLoTheoFIFO(Long hangHoaId, int soLuongCanXuat) {
-        log.info("🔍 Selecting lo hang FIFO: HangHoaId={}, RequiredQty={}",
-                hangHoaId, soLuongCanXuat);
+    public List<LoHang> chonLoTheoFIFO(Long hangHoaId, Long khoId, int soLuongCanXuat) {
+        log.info("🔍 Selecting lo hang FIFO: HangHoaId={}, KhoId={}, RequiredQty={}",
+                hangHoaId, khoId, soLuongCanXuat);
 
-        // Lấy danh sách lô khả dụng (query đã sắp xếp sẵn FIFO trong repository)
-        List<LoHang> loList = loHangRepository
-                .findAvailableLoHangForXuat(hangHoaId);
+        // ✅ GỌI REPOSITORY VỚI ĐẦY ĐỦ 3 THAM SỐ
+        List<LoHang> loList = loHangRepository.findAvailableLoHangForXuat(
+                hangHoaId,
+                khoId,       // ✅ THÊM THAM SỐ NÀY
+                0            // ✅ minSoLuong = 0 (chỉ lấy lô còn hàng)
+        );
 
         if (loList.isEmpty()) {
-            log.warn("⚠️ No available lo_hang found for HangHoaId={}", hangHoaId);
+            log.warn("⚠️ No available lo_hang found for HangHoaId={} in KhoId={}",
+                    hangHoaId, khoId);
             return List.of();
         }
 

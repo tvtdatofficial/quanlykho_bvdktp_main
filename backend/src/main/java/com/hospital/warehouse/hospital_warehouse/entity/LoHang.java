@@ -23,8 +23,14 @@ public class LoHang {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hang_hoa_id", nullable = false)
+    @JoinColumn(name = "hang_hoa_id"
+    )
     private HangHoa hangHoa;
+
+    // ✅ THÊM RELATIONSHIP NÀY - QUAN TRỌNG
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "kho_id", nullable = false)
+    private Kho kho;
 
     @Column(name = "so_lo", nullable = false, length = 50)
     private String soLo;

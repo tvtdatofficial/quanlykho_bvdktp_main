@@ -39,7 +39,9 @@ public class PhieuXuatKhoController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate denNgay,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "ngayXuat") String sortBy,
+
+            // ✅ SỬA: Đổi mặc định từ 'ngayXuat' → 'createdAt'
+            @RequestParam(defaultValue = "createdAt") String sortBy,    // ← ĐỔI DÒNG NÀY
             @RequestParam(defaultValue = "desc") String sortDir) {
 
         Sort sort = sortDir.equalsIgnoreCase("desc") ?
@@ -130,6 +132,32 @@ public class PhieuXuatKhoController {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+
+    /**
+     * ✅ BỔ SUNG: Hủy duyệt phiếu xuất (chỉ ADMIN)
+     */
+    @PatchMapping("/{id}/huy-duyet")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PhieuXuatKhoDTO>> huyDuyetPhieuXuat(
+            @PathVariable Long id,
+            @RequestParam String lyDoHuyDuyet) {
+        try {
+            PhieuXuatKhoDTO result = phieuXuatKhoService.huyDuyetPhieuXuat(id, lyDoHuyDuyet);
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Hủy duyệt phiếu xuất thành công. Tồn kho đã được hoàn nguyên.",
+                    result
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (RuntimeException e) {
+            log.error("Error rolling back phieu xuat", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(e.getMessage()));
         }
     }
 

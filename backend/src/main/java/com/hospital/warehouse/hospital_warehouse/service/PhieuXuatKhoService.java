@@ -272,9 +272,10 @@ public class PhieuXuatKhoService {
     private void processChiTietXuatKho(ChiTietPhieuXuat chiTiet, PhieuXuatKho phieuXuat) {
         HangHoa hangHoa = chiTiet.getHangHoa();
         Integer soLuongCanXuat = chiTiet.getSoLuongXuat();
+        Long khoId = phieuXuat.getKho().getId();
 
-        log.info("🔄 Processing xuat kho: HangHoa={}, SoLuong={}",
-                hangHoa.getTenHangHoa(), soLuongCanXuat);
+        log.info("🔄 Processing xuat kho: HangHoa={}, Kho={}, SoLuong={}, QuanLyLo={}",
+                hangHoa.getTenHangHoa(), khoId, soLuongCanXuat, hangHoa.getCoQuanLyLo());
 
         // 1. Kiểm tra tồn kho
         Integer tonKhoHienTai = hangHoa.getSoLuongCoTheXuat() != null ?
@@ -282,71 +283,139 @@ public class PhieuXuatKhoService {
 
         if (tonKhoHienTai < soLuongCanXuat) {
             throw new IllegalStateException(String.format(
-                    "Không đủ hàng để xuất! Hàng hóa '%s': Yêu cầu %d, Tồn kho %d",
-                    hangHoa.getTenHangHoa(), soLuongCanXuat, tonKhoHienTai
+                    "❌ Không đủ hàng để xuất!\n\n" +
+                            "Hàng hóa: %s\n" +
+                            "Tồn kho: %d\n" +
+                            "Yêu cầu xuất: %d\n" +
+                            "Còn thiếu: %d\n\n" +
+                            "💡 Vui lòng nhập thêm hàng hoặc giảm số lượng xuất.",
+                    hangHoa.getTenHangHoa(), tonKhoHienTai, soLuongCanXuat,
+                    soLuongCanXuat - tonKhoHienTai
             ));
         }
 
-        // Lưu số lượng trước khi xuất
         Integer soLuongTruocXuat = tonKhoHienTai;
 
-        // 2. Lấy danh sách lô hàng có thể xuất (sắp xếp theo FEFO)
-        List<LoHang> danhSachLoHang = loHangService.chonLoTheoFIFO(
-                hangHoa.getId(),
-                soLuongCanXuat
-        );
+        // ✅ 2. PHÂN BIỆT 2 TRƯỜNG HỢP
+        if (hangHoa.getCoQuanLyLo() != null && hangHoa.getCoQuanLyLo()) {
+            // ========== TRƯỜNG HỢP 1: CÓ QUẢN LÝ LÔ ==========
+            log.info("📦 Hàng có quản lý lô → Xuất theo FIFO");
 
-        if (danhSachLoHang.isEmpty()) {
-            throw new IllegalStateException("Không tìm thấy lô hàng khả dụng để xuất");
-        }
-
-        // 3. Xuất hàng theo từng lô (FEFO)
-        Integer soLuongDaXuat = 0;
-        for (LoHang loHang : danhSachLoHang) {
-            if (soLuongDaXuat >= soLuongCanXuat) {
-                break;
-            }
-
-            Integer soLuongCoTheLay = Math.min(
-                    loHang.getSoLuongHienTai(),
-                    soLuongCanXuat - soLuongDaXuat
+            List<LoHang> danhSachLoHang = loHangRepository.findAvailableLoHangForXuat(
+                    hangHoa.getId(),
+                    khoId,
+                    0
             );
 
-            // Trừ số lượng từ lô hàng
-            // Trừ số lượng từ lô hàng qua Service
-            loHangService.truSoLuongLo(loHang.getId(), soLuongCoTheLay);  // ✅ CHỈ 1 DÒNG
+            log.info("📦 Found {} available lots", danhSachLoHang.size());
 
-            // Cập nhật hang_hoa_vi_tri
-            updateHangHoaViTriAfterXuat(hangHoa.getId(), loHang.getId(), soLuongCoTheLay);
+            if (danhSachLoHang.isEmpty()) {
+                // Kiểm tra xem có lô ở kho khác không
+                List<LoHang> loHangKhoKhac = loHangRepository
+                        .findByHangHoaIdAndSoLuongHienTaiGreaterThan(hangHoa.getId(), 0);
 
-            // ... (code trước đó)
+                String errorMsg;
+                if (loHangKhoKhac.isEmpty()) {
+                    errorMsg = String.format(
+                            "❌ Không thể xuất '%s'!\n\n" +
+                                    "📦 Hàng này CÓ QUẢN LÝ LÔ nhưng CHƯA CÓ LÔ NÀO trong hệ thống.\n\n" +
+                                    "💡 Giải pháp:\n" +
+                                    "1. Tạo PHIẾU NHẬP với thông tin lô (số lô, HSD)\n" +
+                                    "2. Sau đó mới có thể xuất\n\n" +
+                                    "Chi tiết:\n" +
+                                    "- Kho: %s (ID: %d)\n" +
+                                    "- Cần xuất: %d",
+                            hangHoa.getTenHangHoa(),
+                            phieuXuat.getKho().getTenKho(), khoId,
+                            soLuongCanXuat
+                    );
+                } else {
+                    StringBuilder khoInfo = new StringBuilder();
+                    for (LoHang lo : loHangKhoKhac) {
+                        if (lo.getKho() != null) {
+                            khoInfo.append(String.format(
+                                    "\n  • %s: %d (Lô: %s, HSD: %s)",
+                                    lo.getKho().getTenKho(),
+                                    lo.getSoLuongHienTai(),
+                                    lo.getSoLo(),
+                                    lo.getHanSuDung() != null ? lo.getHanSuDung().toString() : "N/A"
+                            ));
+                        }
+                    }
 
-            soLuongDaXuat += soLuongCoTheLay;
+                    errorMsg = String.format(
+                            "❌ Không thể xuất '%s' từ '%s'!\n\n" +
+                                    "⚠️ Hàng này KHÔNG CÓ LÔ trong kho bạn chọn.\n" +
+                                    "📍 Hàng đang có ở:%s\n\n" +
+                                    "💡 Giải pháp:\n" +
+                                    "1. Nhập hàng vào '%s', hoặc\n" +
+                                    "2. Chuyển kho, hoặc\n" +
+                                    "3. Đổi kho xuất\n\n" +
+                                    "Chi tiết: Cần xuất %d",
+                            hangHoa.getTenHangHoa(),
+                            phieuXuat.getKho().getTenKho(),
+                            khoInfo.toString(),
+                            phieuXuat.getKho().getTenKho(),
+                            soLuongCanXuat
+                    );
+                }
 
-            log.info("📤 Xuất {} từ lô {} (HSD: {}), còn lại: {}",
-                    soLuongCoTheLay, loHang.getSoLo(),
-                    loHang.getHanSuDung(), loHang.getSoLuongHienTai());
+                log.error("❌ {}", errorMsg);
+                throw new IllegalStateException(errorMsg);
+            }
+
+            // Xuất theo từng lô (FIFO)
+            Integer soLuongDaXuat = 0;
+            for (LoHang loHang : danhSachLoHang) {
+                if (soLuongDaXuat >= soLuongCanXuat) break;
+
+                Integer soLuongCoTheLay = Math.min(
+                        loHang.getSoLuongHienTai(),
+                        soLuongCanXuat - soLuongDaXuat
+                );
+
+                log.info("📤 XUAT from Lot: ID={}, SoLo={}, Before={}, XuatRa={}",
+                        loHang.getId(), loHang.getSoLo(),
+                        loHang.getSoLuongHienTai(), soLuongCoTheLay);
+
+                // Trừ số lượng từ lô
+                loHangService.truSoLuongLo(loHang.getId(), soLuongCoTheLay);
+
+                // Cập nhật hang_hoa_vi_tri
+                updateHangHoaViTriAfterXuat(hangHoa.getId(), loHang.getId(), soLuongCoTheLay);
+
+                soLuongDaXuat += soLuongCoTheLay;
+            }
+
+            if (soLuongDaXuat < soLuongCanXuat) {
+                throw new IllegalStateException(String.format(
+                        "Không đủ hàng trong các lô. Cần: %d, Có: %d, Thiếu: %d",
+                        soLuongCanXuat, soLuongDaXuat, soLuongCanXuat - soLuongDaXuat
+                ));
+            }
+
+        } else {
+            // ========== TRƯỜNG HỢP 2: KHÔNG QUẢN LÝ LÔ ==========
+            log.info("📦 Hàng KHÔNG quản lý lô → Trừ trực tiếp từ tồn kho");
+
+            // Không cần kiểm tra lô, chỉ cần tồn kho đủ (đã check ở bước 1)
+            // Không cần làm gì thêm, chỉ cập nhật tồn kho ở bước sau
         }
 
-        // ✅ 4. Cập nhật tồn kho hàng hóa qua HangHoaService
-        log.info("🔄 Updating inventory for HangHoa ID: {} via HangHoaService",
-                hangHoa.getId());
+        // ✅ 3. Cập nhật tồn kho hàng hóa (cho cả 2 trường hợp)
+        log.info("🔄 Updating inventory via HangHoaService");
+        hangHoaService.capNhatTonKhoSauXuat(hangHoa.getId(), soLuongCanXuat);
 
-        hangHoaService.capNhatTonKhoSauXuat(
-                hangHoa.getId(),      // ID hàng hóa
-                soLuongCanXuat        // Số lượng xuất
-        );
-
-        // 5. Ghi lịch sử tồn kho
+        // ✅ 4. Ghi lịch sử tồn kho
         ghiLichSuTonKho(chiTiet, phieuXuat, soLuongTruocXuat,
                 hangHoa.getSoLuongCoTheXuat());
 
-        // 6. Cập nhật trạng thái chi tiết
+        // ✅ 5. Cập nhật trạng thái chi tiết
         chiTiet.setTrangThai(ChiTietPhieuXuat.TrangThaiChiTiet.DA_XUAT);
         chiTietPhieuXuatRepository.save(chiTiet);
 
-        log.info("✅ Xuất kho thành công: {} x {} = {}₫",
-                hangHoa.getTenHangHoa(), soLuongCanXuat, chiTiet.getThanhTien());
+        log.info("✅ Xuất kho thành công: {} x {}",
+                hangHoa.getTenHangHoa(), soLuongCanXuat);
     }
 
     /**
@@ -438,6 +507,105 @@ public class PhieuXuatKhoService {
 
         log.info("Cancelled phieu xuat ID: {} with reason: {}", id, lyDoHuy);
         return convertToDTOWithDetails(phieuXuatKhoRepository.save(phieuXuat));
+    }
+
+    /**
+     * ✅ BỔ SUNG: Hủy duyệt phiếu xuất (chỉ ADMIN)
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PhieuXuatKhoDTO huyDuyetPhieuXuat(Long id, String lyDoHuyDuyet) {
+        PhieuXuatKho phieuXuat = phieuXuatKhoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phiếu xuất"));
+
+        if (phieuXuat.getTrangThai() != PhieuXuatKho.TrangThaiPhieuXuat.DA_DUYET) {
+            throw new IllegalStateException("Chỉ có thể hủy duyệt phiếu đã duyệt");
+        }
+
+        if (lyDoHuyDuyet == null || lyDoHuyDuyet.trim().isEmpty()) {
+            throw new IllegalArgumentException("Lý do hủy duyệt không được để trống");
+        }
+
+        try {
+            List<ChiTietPhieuXuat> chiTietList = chiTietPhieuXuatRepository.findByPhieuXuatId(id);
+
+            // Hoàn nguyên từng chi tiết (CỘNG LẠI TỒN KHO)
+            for (ChiTietPhieuXuat chiTiet : chiTietList) {
+                rollbackChiTietXuatKho(chiTiet, phieuXuat);
+            }
+
+            // Cập nhật trạng thái
+            phieuXuat.setTrangThai(PhieuXuatKho.TrangThaiPhieuXuat.CHO_DUYET);
+            phieuXuat.setNguoiDuyet(null);
+            phieuXuat.setNgayDuyet(null);
+            phieuXuat.setGhiChu(
+                    (phieuXuat.getGhiChu() != null ? phieuXuat.getGhiChu() + "\n\n" : "") +
+                            "⚠️ ĐÃ HỦY DUYỆT\n" +
+                            "Lý do: " + lyDoHuyDuyet + "\n" +
+                            "Người thực hiện: " + getCurrentUser().getHoTen() + "\n" +
+                            "Thời gian: " + LocalDateTime.now()
+            );
+            phieuXuatKhoRepository.save(phieuXuat);
+
+            log.info("✅ Successfully rolled back phieu xuat ID: {}", id);
+            return convertToDTOWithDetails(phieuXuat);
+
+        } catch (Exception e) {
+            log.error("❌ Error rolling back phieu xuat ID: {}", id, e);
+            throw new RuntimeException("Lỗi khi hủy duyệt phiếu xuất: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Hoàn nguyên một chi tiết phiếu xuất (CỘNG LẠI TỒN KHO)
+     */
+    private void rollbackChiTietXuatKho(ChiTietPhieuXuat chiTiet, PhieuXuatKho phieuXuat) {
+        HangHoa hangHoa = chiTiet.getHangHoa();
+        Integer soLuongXuat = chiTiet.getSoLuongXuat();
+
+        log.info("🔄 Rolling back xuat: HangHoa={}, SoLuong={}",
+                hangHoa.getTenHangHoa(), soLuongXuat);
+
+        Integer tonKhoHienTai = hangHoa.getSoLuongCoTheXuat() != null ?
+                hangHoa.getSoLuongCoTheXuat() : 0;
+
+        // 1. Cộng lại tồn kho
+        hangHoaService.capNhatTonKhoSauNhap(
+                hangHoa.getId(),
+                soLuongXuat,
+                chiTiet.getDonGia()
+        );
+
+        // 2. Cộng lại lô hàng (nếu có)
+        if (chiTiet.getLoHang() != null) {
+            LoHang loHang = chiTiet.getLoHang();
+            loHang.setSoLuongHienTai(loHang.getSoLuongHienTai() + soLuongXuat);
+            loHangRepository.save(loHang);
+            log.info("✅ Restored lo_hang ID={}, new qty={}",
+                    loHang.getId(), loHang.getSoLuongHienTai());
+        }
+
+        // 3. Ghi lịch sử
+        LichSuTonKho lichSu = LichSuTonKho.builder()
+                .hangHoa(hangHoa)
+                .loHang(chiTiet.getLoHang())
+                .viTriKho(chiTiet.getViTriKho())
+                .loaiBienDong(LichSuTonKho.LoaiBienDong.HUY_DUYET_XUAT)
+                .soLuongTruoc(tonKhoHienTai)
+                .soLuongBienDong(soLuongXuat)
+                .soLuongSau(tonKhoHienTai + soLuongXuat)
+                .donGia(chiTiet.getDonGia())
+                .giaTriBienDong(chiTiet.getThanhTien())
+                .maChungTu(phieuXuat.getMaPhieuXuat())
+                .loaiChungTu(LichSuTonKho.LoaiChungTu.HUY_DUYET_XUAT)
+                .lyDo("Hủy duyệt phiếu xuất " + phieuXuat.getMaPhieuXuat())
+                .nguoiThucHien(getCurrentUser())
+                .build();
+
+        lichSuTonKhoRepository.save(lichSu);
+
+        // 4. Cập nhật trạng thái
+        chiTiet.setTrangThai(ChiTietPhieuXuat.TrangThaiChiTiet.CHO_XUAT);
+        chiTietPhieuXuatRepository.save(chiTiet);
     }
 
     /**
