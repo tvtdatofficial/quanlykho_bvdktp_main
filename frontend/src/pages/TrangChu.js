@@ -70,24 +70,93 @@ const TrangChu = () => {
         canhBaoData = [];
       }
 
-      // Calculate statistics
+      // ✅ Calculate statistics - SỬA ĐỂ HIỂN THỊ ĐÚNG SỐ PHIẾU HÔM NAY
       const today = new Date().toISOString().split('T')[0];
 
       const phieuNhapContent = phieuNhapRes.data.data?.content || [];
       const phieuXuatContent = phieuXuatRes.data.data?.content || [];
 
-      // ✅ SỬA: Tính phiếu hôm nay dựa trên createdAt (chính xác hơn)
+      // ✅ LOG DEBUG - Kiểm tra dữ liệu
+      console.log('📅 Today:', today);
+      console.log('📦 Total phieuNhap:', phieuNhapContent.length);
+      console.log('📤 Total phieuXuat:', phieuXuatContent.length);
+
+      if (phieuNhapContent.length > 0) {
+        console.log('📦 Sample phieuNhap:', phieuNhapContent[0]);
+      }
+      if (phieuXuatContent.length > 0) {
+        console.log('📤 Sample phieuXuat:', phieuXuatContent[0]);
+      }
+
+      // ✅ Tính số phiếu nhập hôm nay - LINH HOẠT VỚI NHIỀU FORMAT
       const phieuNhapHomNay = phieuNhapContent.filter(p => {
-        if (!p.createdAt) return false;
-        const createdDate = p.createdAt.split('T')[0] || p.createdAt.split(' ')[0];
-        return createdDate === today;
+        // Thử nhiều field: createdAt, ngayNhap, ngayTao
+        const dateToCheck = p.createdAt || p.ngayNhap || p.ngayTao;
+
+        if (!dateToCheck) {
+          console.log('⚠️ Missing date in phieuNhap:', p.maPhieuNhap);
+          return false;
+        }
+
+        // Xử lý nhiều format: "2025-10-21T10:30:00" hoặc "2025-10-21 10:30:00" hoặc "2025-10-21"
+        let dateStr;
+        if (typeof dateToCheck === 'string') {
+          if (dateToCheck.includes('T')) {
+            dateStr = dateToCheck.split('T')[0];
+          } else if (dateToCheck.includes(' ')) {
+            dateStr = dateToCheck.split(' ')[0];
+          } else {
+            dateStr = dateToCheck;
+          }
+        } else {
+          dateStr = new Date(dateToCheck).toISOString().split('T')[0];
+        }
+
+        const isToday = dateStr === today;
+
+        if (isToday) {
+          console.log(`✅ Found phieuNhap today: ${p.maPhieuNhap} (${dateToCheck})`);
+        }
+
+        return isToday;
       }).length;
 
+      // ✅ Tính số phiếu xuất hôm nay - LINH HOẠT VỚI NHIỀU FORMAT
       const phieuXuatHomNay = phieuXuatContent.filter(p => {
-        if (!p.createdAt) return false;
-        const createdDate = p.createdAt.split('T')[0] || p.createdAt.split(' ')[0];
-        return createdDate === today;
+        // Thử nhiều field: createdAt, ngayXuat, ngayTao
+        const dateToCheck = p.createdAt || p.ngayXuat || p.ngayTao;
+
+        if (!dateToCheck) {
+          console.log('⚠️ Missing date in phieuXuat:', p.maPhieuXuat);
+          return false;
+        }
+
+        // Xử lý nhiều format
+        let dateStr;
+        if (typeof dateToCheck === 'string') {
+          if (dateToCheck.includes('T')) {
+            dateStr = dateToCheck.split('T')[0];
+          } else if (dateToCheck.includes(' ')) {
+            dateStr = dateToCheck.split(' ')[0];
+          } else {
+            dateStr = dateToCheck;
+          }
+        } else {
+          dateStr = new Date(dateToCheck).toISOString().split('T')[0];
+        }
+
+        const isToday = dateStr === today;
+
+        if (isToday) {
+          console.log(`✅ Found phieuXuat today: ${p.maPhieuXuat} (${dateToCheck})`);
+        }
+
+        return isToday;
       }).length;
+
+      // ✅ LOG KẾT QUẢ
+      console.log('📊 Phiếu nhập hôm nay:', phieuNhapHomNay);
+      console.log('📊 Phiếu xuất hôm nay:', phieuXuatHomNay);
 
       const hangSapHetHan = canhBaoData.filter(cb =>
         cb.loaiCanhBao === 'GAN_HET_HAN' && !cb.daXuLy

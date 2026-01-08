@@ -41,4 +41,13 @@ public class DonViTinh {
             this.createdAt = LocalDateTime.now();
         }
     }
+
+    // ✅ BỔ SUNG: Getter alias để tương thích với code
+    public String getTenDonViTinh() {
+        return this.tenDvt;
+    }
+
+    public String getMaDonViTinh() {
+        return this.maDvt;
+    }
 }

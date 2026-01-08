@@ -369,33 +369,62 @@ const XuatKho = () => {
           )}
 
           {/* ✅ THÊM: Nút HỦY DUYỆT cho ADMIN */}
-          {(record.trangThai === 'DA_DUYET' || record.trangThai === 'DA_GIAO') && (
+          {/* ✅ Phần Đã Duyệt - Có nút Hủy duyệt + Excel */}
+          {record.trangThai === 'DA_DUYET' && (
             <>
-              <span style={{ color: '#7f8c8d', fontStyle: 'italic', fontSize: '0.875rem' }}>
-                {record.trangThai === 'DA_DUYET' ? 'Đã duyệt' : 'Đã giao'}
-              </span>
-
-              {/* Chỉ hiển thị nếu user là ADMIN VÀ chưa giao */}
-              {localStorage.getItem('userRole') === 'ADMIN' && record.trangThai === 'DA_DUYET' && (
-                <button
-                  onClick={() => handleHuyDuyetPhieu(record.id)}
-                  style={{
-                    padding: '0.5rem 0.75rem',
-                    backgroundColor: '#e67e22',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: '600'
-                  }}
-                  title="Hủy duyệt (chỉ ADMIN)"
-                >
-                  ⚠️ Hủy duyệt
-                </button>
-              )}
+              {/* Nút Hủy Duyệt */}
+              <button
+                onClick={() => handleHuyDuyetPhieu(record.id)}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  backgroundColor: '#e67e22',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}
+                title="Hủy duyệt (chỉ ADMIN)"
+              >
+                ↩️ Hủy duyệt
+              </button>
             </>
           )}
+
+          {/* ✅ BỔ SUNG: Nút Export Excel - Luôn hiển thị cho tất cả phiếu */}
+          <button
+            onClick={async () => {
+              try {
+                const response = await api.get(`/api/phieu-nhap/${record.id}/export-excel`, {
+                  responseType: 'blob'
+                });
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `Phieu_Nhap_${record.maPhieuNhap}.xlsx`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+                toast.success('Xuất Excel thành công!');
+              } catch (error) {
+                toast.error('Lỗi khi xuất Excel');
+              }
+            }}
+            style={{
+              padding: '0.5rem 0.75rem',
+              backgroundColor: '#16a085',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+            title="Xuất Excel"
+          >
+            📊 Excel
+          </button>
         </div>
       )
     }

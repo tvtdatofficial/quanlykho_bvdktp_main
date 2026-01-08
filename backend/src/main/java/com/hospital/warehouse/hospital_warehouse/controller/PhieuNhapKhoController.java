@@ -4,6 +4,7 @@ import com.hospital.warehouse.hospital_warehouse.dto.ApiResponse;
 import com.hospital.warehouse.hospital_warehouse.dto.PageResponse;
 import com.hospital.warehouse.hospital_warehouse.dto.PhieuNhapKhoDTO;
 import com.hospital.warehouse.hospital_warehouse.entity.PhieuNhapKho;
+import com.hospital.warehouse.hospital_warehouse.service.PhieuNhapExcelExportService;
 import com.hospital.warehouse.hospital_warehouse.service.PhieuNhapKhoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.io.IOException;
 
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -27,6 +34,7 @@ import java.util.List;
 public class PhieuNhapKhoController {
 
     private final PhieuNhapKhoService phieuNhapKhoService;
+    private final PhieuNhapExcelExportService excelExportService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
@@ -84,21 +92,6 @@ public class PhieuNhapKhoController {
         }
     }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
-    public ResponseEntity<ApiResponse<PhieuNhapKhoDTO>> updatePhieuNhap(
-            @PathVariable Long id,
-            @Valid @RequestBody PhieuNhapKhoDTO dto) {
-        try {
-            PhieuNhapKhoDTO updated = phieuNhapKhoService.updatePhieuNhap(id, dto);
-            return ResponseEntity.ok(ApiResponse.success("Cập nhật phiếu nhập thành công", updated));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
     @PatchMapping("/{id}/duyet")
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO')")
     public ResponseEntity<ApiResponse<PhieuNhapKhoDTO>> duyetPhieuNhap(@PathVariable Long id) {
@@ -120,6 +113,21 @@ public class PhieuNhapKhoController {
             log.error("Lỗi không xác định khi duyệt phiếu nhập ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Lỗi hệ thống: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
+    public ResponseEntity<ApiResponse<PhieuNhapKhoDTO>> updatePhieuNhap(
+            @PathVariable Long id,
+            @Valid @RequestBody PhieuNhapKhoDTO dto) {
+        try {
+            PhieuNhapKhoDTO updated = phieuNhapKhoService.updatePhieuNhap(id, dto);
+            return ResponseEntity.ok(ApiResponse.success("Cập nhật phiếu nhập thành công", updated));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
 
@@ -205,5 +213,42 @@ public class PhieuNhapKhoController {
 
         List<PhieuNhapKhoDTO> list = phieuNhapKhoService.getPhieuNhapByKho(khoId, tuNgay, denNgay);
         return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    /**
+     * ✅ BỔ SUNG: Export phiếu nhập ra Excel
+     */
+    @GetMapping("/{id}/export-excel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
+    public ResponseEntity<byte[]> exportPhieuNhapToExcel(@PathVariable Long id) {
+        try {
+            byte[] excelBytes = excelExportService.exportPhieuNhap(id);
+
+            PhieuNhapKhoDTO phieuNhap = phieuNhapKhoService.getPhieuNhapById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phiếu nhập"));
+
+            String fileName = String.format("Phieu_Nhap_%s_%s.xlsx",
+                    phieuNhap.getMaPhieuNhap(),
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", fileName);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelBytes);
+
+        } catch (IllegalArgumentException e) {
+            log.error("Không tìm thấy phiếu nhập ID: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (IOException e) {
+            log.error("Lỗi khi export Excel phiếu nhập ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } catch (Exception e) {
+            log.error("Lỗi không xác định khi export Excel: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

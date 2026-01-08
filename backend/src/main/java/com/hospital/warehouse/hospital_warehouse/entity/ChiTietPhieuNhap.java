@@ -91,6 +91,15 @@ public class ChiTietPhieuNhap {
         this.updatedAt = LocalDateTime.now();
     }
 
+    // ✅ BỔ SUNG: Getter alias để tương thích với code
+    public Integer getSoLuongNhap() {
+        return this.soLuong;
+    }
+
+    public Integer getSoLuongYeuCau() {
+        return this.soLuong; // Trả về soLuong để tương thích
+    }
+
     public enum TrangThaiChiTiet {
         CHO_NHAP, DA_NHAP, LOI
     }

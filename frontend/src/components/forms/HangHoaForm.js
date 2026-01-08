@@ -110,7 +110,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
         <h4 style={{ marginBottom: '1rem', color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '0.5rem' }}>
           Thông tin cơ bản
         </h4>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
           <div>
             <label style={labelStyle}>Mã Hàng Hóa *</label>
@@ -210,10 +210,10 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
 
 
         {/* ✅ THÊM Ở ĐÂY - SAU MÔ TẢ, TRƯỚC CÁC TRƯỜNG KHÁC */}
-    <ImageUpload
-      currentImage={formData.hinhAnhUrl}
-      onImageChange={(url) => setFormData(prev => ({ ...prev, hinhAnhUrl: url }))}
-    />
+        <ImageUpload
+          currentImage={formData.hinhAnhUrl}
+          onImageChange={(url) => setFormData(prev => ({ ...prev, hinhAnhUrl: url }))}
+        />
       </div>
 
       {/* Thông tin chi tiết */}
@@ -221,7 +221,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
         <h4 style={{ marginBottom: '1rem', color: '#2c3e50', borderBottom: '2px solid #e74c3c', paddingBottom: '0.5rem' }}>
           Thông tin chi tiết
         </h4>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
           <div>
             <label style={labelStyle}>Thành Phần</label>
@@ -307,7 +307,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
         <h4 style={{ marginBottom: '1rem', color: '#2c3e50', borderBottom: '2px solid #f39c12', paddingBottom: '0.5rem' }}>
           Thông tin kho bãi
         </h4>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
           <div>
             <label style={labelStyle}>Số Lượng Tối Thiểu</label>
@@ -444,7 +444,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
         <h4 style={{ marginBottom: '1rem', color: '#2c3e50', borderBottom: '2px solid #9b59b6', paddingBottom: '0.5rem' }}>
           Cấu hình
         </h4>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
           <div>
             <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -456,7 +456,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
               />
               Có quản lý lô
             </label>
-            
+
             <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input
                 type="checkbox"
@@ -466,7 +466,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
               />
               Có hạn sử dụng
             </label>
-            
+
             <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input
                 type="checkbox"
@@ -477,7 +477,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
               Có kiểm soát chất lượng
             </label>
           </div>
-          
+
           <div>
             <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input
@@ -488,7 +488,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
               />
               Là thuốc độc
             </label>
-            
+
             <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input
                 type="checkbox"
@@ -498,7 +498,7 @@ const HangHoaForm = ({ initialData, onSubmit, onCancel }) => {
               />
               Là thuốc hướng thần
             </label>
-            
+
             <div>
               <label style={labelStyle}>Trạng Thái</label>
               <select

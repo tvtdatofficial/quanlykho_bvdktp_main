@@ -17,6 +17,8 @@ import XuatKho from './pages/XuatKho';
 import BaoCao from './pages/BaoCao';
 import ViTriKho from './pages/ViTriKho';
 import LoHang from './pages/LoHang';
+import LichSuTonKho from './pages/LichSuTonKho';  // ✅ THÊM DÒNG NÀY
+
 
 function App() {
   return (
@@ -26,7 +28,7 @@ function App() {
           <Routes>
             {/* Public Route */}
             <Route path="/dang-nhap" element={<DangNhap />} />
-            
+
             {/* Protected Routes */}
             <Route
               path="/"
@@ -36,7 +38,7 @@ function App() {
                 </BaoVeRoute>
               }
             />
-            
+
             <Route
               path="/quan-ly-kho"
               element={
@@ -45,7 +47,7 @@ function App() {
                 </BaoVeRoute>
               }
             />
-            
+
             <Route
               path="/hang-hoa"
               element={
@@ -54,7 +56,7 @@ function App() {
                 </BaoVeRoute>
               }
             />
-            
+
             <Route
               path="/nhap-kho"
               element={
@@ -63,7 +65,7 @@ function App() {
                 </BaoVeRoute>
               }
             />
-            
+
             <Route
               path="/xuat-kho"
               element={
@@ -72,7 +74,7 @@ function App() {
                 </BaoVeRoute>
               }
             />
-            
+
             <Route
               path="/bao-cao"
               element={
@@ -81,7 +83,7 @@ function App() {
                 </BaoVeRoute>
               }
             />
-            
+
             <Route
               path="/vi-tri-kho"
               element={
@@ -90,7 +92,7 @@ function App() {
                 </BaoVeRoute>
               }
             />
-            
+
             <Route
               path="/lo-hang"
               element={
@@ -99,7 +101,17 @@ function App() {
                 </BaoVeRoute>
               }
             />
-            
+
+            {/* ✅ THÊM ROUTE MỚI */}
+            <Route
+              path="/lich-su-ton-kho"
+              element={
+                <BaoVeRoute>
+                  <LichSuTonKho />
+                </BaoVeRoute>
+              }
+            />
+
             {/* Catch all - redirect to home */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -4,6 +4,7 @@ import com.hospital.warehouse.hospital_warehouse.dto.ApiResponse;
 import com.hospital.warehouse.hospital_warehouse.dto.PageResponse;
 import com.hospital.warehouse.hospital_warehouse.dto.PhieuXuatKhoDTO;
 import com.hospital.warehouse.hospital_warehouse.entity.PhieuXuatKho;
+import com.hospital.warehouse.hospital_warehouse.service.PhieuXuatExcelExportService;
 import com.hospital.warehouse.hospital_warehouse.service.PhieuXuatKhoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.io.IOException;
 
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -27,6 +33,8 @@ import java.util.List;
 public class PhieuXuatKhoController {
 
     private final PhieuXuatKhoService phieuXuatKhoService;
+    private final PhieuXuatExcelExportService excelExportService;
+
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
@@ -191,5 +199,42 @@ public class PhieuXuatKhoController {
     public ResponseEntity<ApiResponse<List<PhieuXuatKhoDTO>>> getPhieuXuatChoDuyet() {
         List<PhieuXuatKhoDTO> list = phieuXuatKhoService.getPhieuXuatChoDuyet();
         return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    /**
+     * ✅ BỔ SUNG: Export phiếu xuất ra Excel
+     */
+    @GetMapping("/{id}/export-excel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'QUAN_LY_KHO', 'NHAN_VIEN_KHO')")
+    public ResponseEntity<byte[]> exportPhieuXuatToExcel(@PathVariable Long id) {
+        try {
+            byte[] excelBytes = excelExportService.exportPhieuXuat(id);
+
+            PhieuXuatKhoDTO phieuXuat = phieuXuatKhoService.getPhieuXuatById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy phiếu xuất"));
+
+            String fileName = String.format("Phieu_Xuat_%s_%s.xlsx",
+                    phieuXuat.getMaPhieuXuat(),
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", fileName);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelBytes);
+
+        } catch (IllegalArgumentException e) {
+            log.error("Không tìm thấy phiếu xuất ID: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (IOException e) {
+            log.error("Lỗi khi export Excel phiếu xuất ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } catch (Exception e) {
+            log.error("Lỗi không xác định khi export Excel: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

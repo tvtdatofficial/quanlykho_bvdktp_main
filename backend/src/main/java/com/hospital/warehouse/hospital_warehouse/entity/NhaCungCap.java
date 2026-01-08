@@ -92,6 +92,15 @@ public class NhaCungCap {
         this.updatedAt = LocalDateTime.now();
     }
 
+    // ✅ BỔ SUNG: Getter alias để tương thích với code
+    public String getTenNhaCungCap() {
+        return this.tenNcc;
+    }
+
+    public String getMaNhaCungCap() {
+        return this.maNcc;
+    }
+
     public enum TrangThaiNcc {
         HOAT_DONG("Hoạt động"),
         TAM_DUNG("Tạm dừng"),

@@ -74,7 +74,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/danh-muc/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
                         .requestMatchers("/api/don-vi-tinh/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
                         .requestMatchers("/api/khoa-phong/**").hasAnyRole("ADMIN", "QUAN_LY_KHO", "NHAN_VIEN_KHO")
-                        .requestMatchers("/api/files/upload/**").hasAnyRole("ADMIN", "QUAN_LY_KHO")  // ✅ THÊM - Chỉ cho phép upload với token
+                        .requestMatchers("/api/files/upload/**").hasAnyRole("ADMIN", "QUAN_LY_KHO")
                         .requestMatchers("/api/files/delete").hasAnyRole("ADMIN", "QUAN_LY_KHO")
 
                         // ========== USER MANAGEMENT APIs ==========

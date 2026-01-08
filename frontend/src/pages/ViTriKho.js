@@ -35,46 +35,46 @@ const ViTriKho = () => {
   };
 
   const fetchViTriList = async () => {
-  if (!selectedKho) {
-    console.log('⚠️ No kho selected');
-    return;
-  }
-  
-  console.log('🔍 Fetching vi tri for kho:', selectedKho);
-  
-  setLoading(true);
-  try {
-    const response = await api.get('/api/vi-tri-kho', {
-      params: {
-        khoId: selectedKho,
-        page: currentPage,
-        size: 20
-      }
-    });
-    
-    console.log('📦 Raw response:', response);
-    console.log('📦 Response data:', response.data);
-    
-    // XỬ LÝ CẢ 2 TRƯỜNG HỢP
-    const pageData = response.data.success 
-      ? response.data.data 
-      : response.data;
-    
-    console.log('📦 Page data:', pageData);
-    console.log('📦 Content:', pageData.content);
-    
-    setViTriList(pageData.content || []);
-    setTotalPages(pageData.totalPages || 0);
-    
-    console.log(`✅ Set ${(pageData.content || []).length} items to state`);
-  } catch (error) {
-    console.error('❌ Error:', error);
-    console.error('❌ Error response:', error.response);
-    toast.error(error.response?.data?.message || 'Lỗi khi tải danh sách vị trí kho');
-  } finally {
-    setLoading(false);
-  }
-};
+    if (!selectedKho) {
+      console.log('⚠️ No kho selected');
+      return;
+    }
+
+    console.log('🔍 Fetching vi tri for kho:', selectedKho);
+
+    setLoading(true);
+    try {
+      const response = await api.get('/api/vi-tri-kho', {
+        params: {
+          khoId: selectedKho,
+          page: currentPage,
+          size: 20
+        }
+      });
+
+      console.log('📦 Raw response:', response);
+      console.log('📦 Response data:', response.data);
+
+      // XỬ LÝ CẢ 2 TRƯỜNG HỢP
+      const pageData = response.data.success
+        ? response.data.data
+        : response.data;
+
+      console.log('📦 Page data:', pageData);
+      console.log('📦 Content:', pageData.content);
+
+      setViTriList(pageData.content || []);
+      setTotalPages(pageData.totalPages || 0);
+
+      console.log(`✅ Set ${(pageData.content || []).length} items to state`);
+    } catch (error) {
+      console.error('❌ Error:', error);
+      console.error('❌ Error response:', error.response);
+      toast.error(error.response?.data?.message || 'Lỗi khi tải danh sách vị trí kho');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCreate = async (formData) => {
     try {
